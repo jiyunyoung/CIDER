@@ -13,8 +13,6 @@ CIDER performs **joint error correction and multi-user demixing** of colliding c
   <img src="assets/process_renewed.png" alt="CIDER decoding pipeline from wireless channel observations to decoded message set" width="100%">
 </p>
 
-The full-resolution pipeline diagram is available as [process_renewed.pdf](assets/process_renewed.pdf).
-
 ## Problem setup
 
 A random-access channel with *K* active users transmitting GF(*Q*) LDPC codewords that collide on a shared medium.
