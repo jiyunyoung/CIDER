@@ -3,7 +3,7 @@
 Protocol-Level Evaluation for Random Access with LDPC Demixing.
 
 Simulates a two-step random access protocol:
-1. Users randomly pick 1 of 12 ZC preambles
+1. Users randomly pick 1 of # ZC preambles
 2. Users with same preamble collide in the same slot
 3. Decoder uses K-specific checkpoint to decode each slot
 

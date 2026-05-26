@@ -1,5 +1,5 @@
 """
-DiMP-Iterative: Iterative A+B without masking.
+CIDER-Iterative: Iterative module A+B without masking.
 
 Same Module A (slot responsibility) and Module B (neural MP) as CIDER,
 but replaces masked diffusion with simple iterative refinement:

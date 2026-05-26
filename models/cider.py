@@ -1,16 +1,11 @@
 """
-DiMP-NoGRU: Diffusion Message Passing without GRU (Residual Update Only)
-
-Same as DiMP-Rev2 but replaces GRU belief update with simple residual + FFN.
-This tests whether the recurrent state is necessary or if pure feedforward suffices.
-
 Architecture:
   INIT: VN = X_soft @ W_base + slot_init
 
   For each layer:
     (1) VN_tilde <- SlotResponsibility(VN, Y, W_base)
     (2) VN_tilde <- NeuralMP(VN_tilde)
-    (3) VN <- VN + FFN(VN_tilde)  # residual instead of GRU
+    (3) VN <- VN + FFN(VN_tilde)  # residual
 """
 
 import math
@@ -375,8 +370,6 @@ class ResidualUpdateBlock(nn.Module):
 # ============================================================
 class DiMP(nn.Module):
     """
-    DiMP without GRU - uses simple residual update instead.
-
     Architecture per layer:
     (1) SlotResponsibility: fuse VN with channel evidence Y
     (2) NeuralMP: edge-based message passing with exact GF permutations

@@ -1,13 +1,8 @@
 """
-DiMP-NoGRU-OneShot: One-shot prediction using DiMP-NoGRU architecture.
-
-Same architecture as DiMP-NoGRU but without diffusion:
+Same architecture as cider but without diffusion:
 - Takes only Y as input (soft scores from channel)
 - Predicts K codewords in one forward pass
 - Uses Hungarian matching loss for permutation-invariant training
-
-This is a fair comparison between iterative diffusion vs one-shot prediction
-using the same underlying neural architecture.
 """
 
 import math
@@ -307,7 +302,7 @@ class ResidualUpdateBlock(nn.Module):
 # ============================================================
 class DiMPNoGRUOneShot(L.LightningModule):
     """
-    One-shot prediction using DiMP-NoGRU architecture.
+    One-shot prediction using cider architecture.
 
     Takes Y (soft scores) and predicts K codewords directly without diffusion.
     Uses Hungarian matching loss for permutation-invariant training.

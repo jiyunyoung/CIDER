@@ -1,14 +1,5 @@
 """
-DiMP-Rev2: Diffusion Message Passing with Exact GF Permutation
-
-Key features:
-  - W_base: [Q+1, D] shared symbol embedding (U in the formulation)
-  - Exact GF(Q) permutation: T_a = U^T @ P_a @ U where P_a[i,j] = 1 iff j = a^{-1}*i
-  - VN → CN: apply T_a (normalize by coefficient)
-  - CN → VN: apply T_a^T (denormalize by coefficient inverse)
-  - GF algebra is exact, nothing algebraic is learned
-  - Attention operates in embedding space, never touches raw symbols
-
+cider with gru
 Architecture:
   INIT: VN = X_soft @ W_base + slot_init
 
@@ -249,7 +240,6 @@ class NeuralMPBlock(nn.Module):
     (5) e^x_{j→i} = T^T_{H[j,i]} @ e^z    [exact GF denormalize via factorized]
     (6) h_i' = g * sum_j(e^x) + (1-g) * h_i [gated aggregation - Option B]
 
-    This replaces TWO cross-attentions (VN→CN, CN→VN) with ONE edge self-attention.
     """
     def __init__(self, D_model: int, num_heads: int, Q_field: int, dropout: float = 0.1, mlp_ratio: int = 4):
         super().__init__()
@@ -475,12 +465,10 @@ class GRUUpdateBlock(nn.Module):
 
 
 # ============================================================
-# DiMP-Rev2: Main Model with Neural MP
+# Main Model with Neural MP
 # ============================================================
 class DiMP(nn.Module):
     """
-    DiMP with Exact GF Permutation and Neural Message Passing.
-
     Key features:
     - W_base (U): [Q+1, D] - shared symbol embedding
     - T_a = U^T @ P_a @ U: exact GF permutation lifted to embedding space

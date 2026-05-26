@@ -1,7 +1,5 @@
 """
-DiMP-NoGRU-NoMP: Diffusion Message Passing without GRU and Neural MP
-
-Double ablation: no recurrent state AND no Tanner graph message passing.
+No Tanner graph message passing.
 Uses simple residual update and slot responsibility only.
 
 Architecture:
@@ -160,8 +158,6 @@ class ResidualUpdateBlock(nn.Module):
 # ============================================================
 class DiMP(nn.Module):
     """
-    DiMP without GRU and without Neural MP.
-
     Architecture per layer:
     (1) SlotResponsibility: fuse VN with channel evidence Y
     (2) Residual: VN = VN_tilde + FFN(VN_tilde)

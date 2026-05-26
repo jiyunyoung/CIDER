@@ -2,9 +2,6 @@
 # ============================================================
 # Protocol-Level Evaluation for Random Access
 #
-# Simulates random access with ZC preambles and LDPC demixing.
-# Uses per-K inference steps configured in eval_protocol.py.
-#
 # Usage:
 #   ./eval_protocol.sh [options]
 #   ./eval_protocol.sh --user_counts 10 15 20 25 30
@@ -50,16 +47,16 @@ DEFAULT_TARGET_LOAD=5
 
 USER_SET_SLOTS=0
 for arg in "$@"; do
-    case "$arg" in
-        --target_load|--target_load=*|--num_preambles|--num_preambles=*|--preambles_per_count|--preambles_per_count=*)
-            USER_SET_SLOTS=1
-            break
-            ;;
-    esac
+  case "$arg" in
+  --target_load | --target_load=* | --num_preambles | --num_preambles=* | --preambles_per_count | --preambles_per_count=*)
+    USER_SET_SLOTS=1
+    break
+    ;;
+  esac
 done
 
 if [ "$USER_SET_SLOTS" = "1" ]; then
-    python -u inference/eval_protocol.py "$@"
+  python -u inference/eval_protocol.py "$@"
 else
-    python -u inference/eval_protocol.py --target_load "$DEFAULT_TARGET_LOAD" "$@"
+  python -u inference/eval_protocol.py --target_load "$DEFAULT_TARGET_LOAD" "$@"
 fi

@@ -1,18 +1,12 @@
 """
 SNR sweep evaluator for rule-based decoders (sic_bp).
 
-Mirrors inference/eval_snr_sweep.py but runs FactorizedBPDecoder
-instead of the trained CIDER model. Builds the decoder once per K
-(H fixed for tiny_ldpc) and loops SNR by re-instantiating the
-on-the-fly dataset with a new Eb/N0 (fixed seed).
-
 Usage:
     python inference/rule_snr_sweep.py
     python inference/rule_snr_sweep.py --K 2 3 4 5 --snr -4 -3 -2 -1 0 1 2 3 4
     python inference/rule_snr_sweep.py --max-iters 100 --explain-strength 1.0
 
 SNR convention: per-user per-complex-channel-use SNR.
-For tiny_ldpc: Eb/N0 [dB] = SNR [dB] + 10*log10(L*n_s/B) ≈ SNR + 10.79 dB.
 """
 import argparse
 import os
@@ -44,11 +38,6 @@ def make_loader(h_path, K, Eb_dB, n_s, sigma2, num_samples, batch_size,
 
 def evaluate(decoder, loader, K, N, per_sample=True):
     """Run decoder on loader, return (SER, CER).
-
-    per_sample=True uses FactorizedBPDecoder.decode() per sample (matches
-    scripts/eval_bp_overnight.sh and the canonical literature setting).
-    per_sample=False uses decode_batch() — vectorized over batch, ~5–10x
-    faster but slightly different floating-point order.
     """
     correct_sym = total_sym = correct_cw = total_cw = 0
     for Y_batch, X_batch in loader:

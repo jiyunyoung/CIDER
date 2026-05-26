@@ -1,5 +1,5 @@
 """
-Fast SNR sweep evaluator.
+SNR sweep evaluator.
 
 Loads each K's checkpoint exactly once, then loops SNR internally by
 re-instantiating the on-the-fly dataset with a new Eb/N0 (fixed seed).
@@ -17,7 +17,6 @@ Usage:
     python inference/eval_snr_sweep.py --K 6 7 8 --no-quality-head   # ablation
 
 SNR convention: per-user per-complex-channel-use SNR (Es/N0).
-For tiny_ldpc: Eb/N0 [dB] = SNR [dB] + 10*log10(L*n_s/B) ≈ SNR + 10.79 dB.
 """
 import argparse
 import os

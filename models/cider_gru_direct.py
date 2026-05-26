@@ -1,7 +1,7 @@
 """
-DiMP-Rev2 One-Shot: Direct prediction without diffusion framework.
+Direct prediction without diffusion framework.
 
-Uses the same DiMP-Rev2 backbone but as a one-shot predictor:
+Uses the same cider_gru backbone but as a one-shot predictor:
 - No diffusion timesteps or masking schedule
 - Single forward pass from Y to predictions
 - Hungarian matching loss (like baselines)
@@ -22,7 +22,7 @@ from models.cider_gru import DiMP
 
 class DiMPRev2OneShot(L.LightningModule):
     """
-    DiMP-Rev2 as a one-shot predictor (no diffusion).
+    cider-gru as a one-shot predictor (no diffusion).
 
     Architecture:
         Y [N, Q] -> DiMP backbone (single pass) -> [K, N, Q]

@@ -2,7 +2,7 @@
 """
 Per-K isolated evaluation, reusing eval_protocol.py's inference config.
 
-Skips the protocol/collision simulation. For each K in --K_list, loads the
+For each K in --K_list, loads the
 K-specific test set and decodes every sample with the exact same checkpoint,
 inference steps, dispatch strategy, and quality-head thresholds that
 eval_protocol.py would use for that K.

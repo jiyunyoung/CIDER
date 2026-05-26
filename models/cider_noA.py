@@ -1,7 +1,7 @@
 """
-DiMP-NoGRU-NoSlot: Diffusion Message Passing without GRU and Slot Responsibility
+cider-NoSlot: Diffusion Message Passing without Slot Responsibility
 
-Double ablation: no recurrent state AND no slot competition.
+No slot competition.
 Uses simple residual update and broadcasts Y to all slots equally.
 
 Architecture:
@@ -10,7 +10,7 @@ Architecture:
   For each layer:
     (1) VN_tilde = VN + Y_embed  # simple Y fusion, no competition
     (2) VN_tilde <- NeuralMP(VN_tilde)
-    (3) VN <- VN_tilde + FFN(VN_tilde)  # residual instead of GRU
+    (3) VN <- VN_tilde + FFN(VN_tilde)
 """
 
 import math
@@ -341,8 +341,6 @@ class ResidualUpdateBlock(nn.Module):
 # ============================================================
 class DiMP(nn.Module):
     """
-    DiMP without GRU and without Slot Responsibility.
-
     Architecture per layer:
     (1) SimpleYFusion: broadcast Y to all slots (no competition)
     (2) NeuralMP: edge-based message passing with exact GF permutations
