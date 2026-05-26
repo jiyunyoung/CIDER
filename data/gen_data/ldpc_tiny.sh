@@ -58,7 +58,7 @@ DEVICE="cuda"
 # Paths
 # ============================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="${SCRIPT_DIR}/datasets/ldpc_Q${Q}_L${L}_K${K}"
+OUTPUT_DIR="${HOME}/data/demix/tiny_LDPC"
 
 # ============================================================
 # Print Configuration

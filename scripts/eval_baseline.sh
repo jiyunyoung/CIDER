@@ -6,18 +6,18 @@
 #   ./eval_baseline.sh <data> <model> [options]
 #
 # Baseline models:
-#   ./eval_baseline.sh tiny_ldpc baseline_mlp
-#   ./eval_baseline.sh tiny_ldpc baseline_cnn
-#   ./eval_baseline.sh tiny_ldpc baseline_transformer
-#   ./eval_baseline.sh tiny_ldpc baseline_gnn
-#   ./eval_baseline.sh tiny_ldpc baseline_nbp
+#   ./eval_baseline.sh tiny_ldpc mlp
+#   ./eval_baseline.sh tiny_ldpc cnn
+#   ./eval_baseline.sh tiny_ldpc transformer
+#   ./eval_baseline.sh tiny_ldpc gnn
+#   ./eval_baseline.sh tiny_ldpc nbp
 #   ./eval_baseline.sh tiny_ldpc cider_direct
 #   ./eval_baseline.sh tiny_ldpc cider_gru_direct
 #   ./eval_baseline.sh tiny_ldpc mpa
 #
 # Supported models:
-#   - baseline_mlp, baseline_cnn, baseline_transformer
-#   - baseline_gnn, baseline_nbp (uses H matrix)
+#   - mlp, cnn, transformer
+#   - gnn, nbp (uses H matrix)
 #   - cider_direct, cider_gru_direct, mpa (one-shot)
 #
 # Uses mode=test for evaluation
@@ -26,9 +26,8 @@
 set -e
 
 DATA="${1:-tiny_ldpc}"
-SIZE="${2:-tiny}"
-MODEL="${3:-baseline_mlp}"
-shift 3 2>/dev/null || shift 2 2>/dev/null || shift 1 2>/dev/null || true
+MODEL="${2:-mlp}"
+shift 2 2>/dev/null || shift 1 2>/dev/null || true
 EXTRA_ARGS="$@"
 
 # Get project root
@@ -37,7 +36,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # Determine if baseline or diffusion model
-BASELINES="baseline_mlp baseline_cnn baseline_transformer baseline_gnn baseline_nbp cider_direct cider_gru_direct mpa"
+BASELINES="mlp cnn transformer gnn nbp cider_direct cider_gru_direct mpa"
 IS_BASELINE=false
 for b in $BASELINES; do
     if [ "$MODEL" == "$b" ]; then
@@ -85,7 +84,7 @@ echo "============================================================"
 if [ "$IS_BASELINE" = true ]; then
     echo "Data: $DATA | Model: $MODEL (baseline)"
 else
-    echo "Data: $DATA | Size: $SIZE | Model: $MODEL"
+    echo "Data: $DATA | Model: $MODEL"
 fi
 echo "Checkpoint: $CHECKPOINT"
 echo "============================================================"
@@ -101,7 +100,6 @@ else
     python -u main.py \
         mode=test \
         data=$DATA \
-        size=$SIZE \
         model=$MODEL \
         checkpoint_path=$CHECKPOINT \
         $EXTRA_ARGS

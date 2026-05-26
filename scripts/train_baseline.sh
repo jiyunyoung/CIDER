@@ -16,18 +16,17 @@
 #
 # Usage:
 #   ./train_baseline.sh                                    # defaults
-#   ./train_baseline.sh tiny_ldpc baseline_mlp             # data + model
-#   ./train_baseline.sh tiny_ldpc baseline_cnn
-#   ./train_baseline.sh tiny_ldpc baseline_transformer
-#   ./train_baseline.sh tiny_ldpc baseline_gnn
-#   ./train_baseline.sh tiny_ldpc baseline_nbp
+#   ./train_baseline.sh tiny_ldpc mlp                      # data + model
+#   ./train_baseline.sh tiny_ldpc cnn
+#   ./train_baseline.sh tiny_ldpc transformer
+#   ./train_baseline.sh tiny_ldpc gnn
+#   ./train_baseline.sh tiny_ldpc nbp
 #   ./train_baseline.sh moderate_ldpc cider_direct
 #   ./train_baseline.sh moderate_ldpc cider_gru_direct
 #
 # Config groups:
 #   - data: tiny_ldpc, small_ldpc, moderate_ldpc
-#   - model: baseline_mlp, baseline_cnn, baseline_transformer
-#            baseline_gnn, baseline_nbp
+#   - model: mlp, cnn, transformer, gnn, nbp
 #            cider_direct, cider_gru_direct, mpa
 #
 # Note: Baselines have fixed architecture (no size config needed)
@@ -36,7 +35,7 @@
 set -e
 
 DATA="${1:-tiny_ldpc}"
-MODEL="${2:-baseline_mlp}"
+MODEL="${2:-mlp}"
 shift 2 2>/dev/null || shift 1 2>/dev/null || true
 EXTRA_ARGS="$@"
 

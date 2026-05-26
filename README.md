@@ -2,7 +2,18 @@
 
 **Codeword Demixing with Error correction and Recurrent inference** — a diffusion-based decoder for multi-user random access over GF(*Q*) LDPC codes.
 
+Code for **Structured Masked Diffusion for Joint Multiuser Decoding**<br>
+Taekyun Lee<sup>*</sup>, Jiyoung Yun<sup>*</sup>, Jeffrey Andrews, Hyeji Kim<br>
+<sup>*</sup>Equal contribution.<br>
+arXiv: TBD
+
 CIDER performs **joint error correction and multi-user demixing** of colliding codewords. Given soft per-position likelihoods from an inner channel decoder, it recovers the *K* active users' codewords via MaskGIT-style discrete masked diffusion with iterative confidence-based unmasking, plus a lightweight **PRISM** quality head for self-correction at higher user loads.
+
+<p align="center">
+  <img src="assets/process_renewed.png" alt="CIDER decoding pipeline from wireless channel observations to decoded message set" width="100%">
+</p>
+
+The full-resolution pipeline diagram is available as [process_renewed.pdf](assets/process_renewed.pdf).
 
 ## Problem setup
 
@@ -25,7 +36,7 @@ conda activate muecc
 
 ## Data generation (GPU-batched)
 
-Datasets are generated from a parity-check matrix `H` through an AWGN inner channel with a partial-DFT sensing matrix and a batched AMP inner decoder (all on GPU). Output tensors land in `~/data/demix/<Dataset>/` (override via `data.data_dir`).
+Datasets are generated from a parity-check matrix `H` through an AWGN inner channel with a partial-DFT sensing matrix and a batched AMP inner decoder (all on GPU). Output tensors land in `~/data/demix/<Dataset>/` (override via `data_dir`).
 
 ```bash
 # Step 1: construct H  →  H_matrix.pt
@@ -59,8 +70,8 @@ Two stages.
 
 **Baselines:**
 ```bash
-./scripts/train_baseline.sh tiny_ldpc baseline_mlp
-./scripts/train_baseline.sh tiny_ldpc baseline_transformer
+./scripts/train_baseline.sh tiny_ldpc mlp
+./scripts/train_baseline.sh tiny_ldpc transformer
 ```
 
 ## Evaluation
@@ -72,7 +83,7 @@ Two stages.
 # CIDER — protocol-level, multiple user loads K (PRISM dispatch for K>=6)
 ./scripts/eval_protocol.sh
 
-# CIDER + SIC-BP — PUPE vs Eb/N0 sweep
+# CIDER — PUPE vs Eb/N0 sweep on on-the-fly test data
 ./scripts/eval_snr_sweep.sh
 
 # Rule-based baselines
@@ -101,7 +112,7 @@ python main.py mode=train data=moderate_ldpc model=cider_gru optim.lr=5e-4 train
 
 ## Model variants (glossary)
 
-The model names encode an ablation/variant matrix. All CIDER variants share the diffusion backbone (`models/cider.py`, class `DiMP`) and differ in which modules are present and how inference is run.
+The model names encode an ablation/variant matrix. CIDER variants use closely related backbones in `models/` and differ in which modules are present and how inference is run.
 
 | `model=` | Class | What it is |
 | --- | --- | --- |
@@ -145,5 +156,6 @@ scripts/                Training / evaluation shell wrappers
 
 - **Datasets:** `{tiny,small,moderate,large}_ldpc`
 - **Sizes:** `tiny` (128D), `small`, `moderate`, `large`
-- **Checkpoints:** `checkpoints/{data}_{size}_{model}/best_model.ckpt`
-- **Data path:** `~/data/demix/{Dataset}/`
+- **Diffusion checkpoints:** `checkpoints/{data}_{size}_{model}/best_model.ckpt`
+- **Baseline checkpoints:** `checkpoints/{data}_{model}/best_model.ckpt`
+- **Data paths:** `~/data/demix/tiny_LDPC/`, `~/data/demix/small_LDPC/`, `~/data/demix/moderate_LDPC/`, `~/data/demix/large_LDPC/`

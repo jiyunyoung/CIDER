@@ -1,0 +1,11 @@
+# CIDER ablation without Module B (message passing)
+
+backbone_type: cider_noB
+
+use_soft_input: false
+
+mlp_ratio: 4
+dropout: 0.1
+
+tau_min: 0.2
+slot_init_scale: 0.5

@@ -1,15 +1,10 @@
-# DiMP-Rev2 One-Shot: Direct prediction without diffusion
-# Uses DiMP backbone but as one-shot predictor (like baselines)
+# CIDER-GRU one-shot: direct prediction without diffusion
 
-name: dimp_rev2_oneshot
+backbone_type: cider_gru_direct
 
-# Architecture (matches dimp_rev2)
-D_model: 128
-num_layers: 4
-heads: 4
+# Architecture (size configs may override these)
 mlp_ratio: 4
 dropout: 0.1
 
-# Slot responsibility parameters
 tau_min: 0.2
 slot_init_scale: 0.5

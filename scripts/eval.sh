@@ -10,9 +10,9 @@
 #   ./eval.sh small_ldpc tiny cider_gru eval_split=val
 #
 # Baseline models:
-#   ./eval.sh tiny_ldpc _ baseline_mlp
-#   ./eval.sh tiny_ldpc _ baseline_cnn
-#   ./eval.sh tiny_ldpc _ baseline_transformer
+#   ./eval.sh tiny_ldpc _ mlp
+#   ./eval.sh tiny_ldpc _ cnn
+#   ./eval.sh tiny_ldpc _ transformer
 #
 # Options:
 #   random_slot_first=true   Enable random slot first reveal (default: false)
@@ -20,7 +20,7 @@
 #
 # Supported models:
 #   - cider, cider_gru (diffusion message passing)
-#   - baseline_mlp, baseline_cnn, baseline_transformer (one-shot)
+#   - mlp, cnn, transformer, gnn, nbp, mpa (one-shot)
 #
 # Uses mode=test (random_slot_first=False by default for fair evaluation)
 # ============================================================
@@ -39,7 +39,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # Determine if baseline or diffusion model
-BASELINES="baseline_mlp baseline_cnn baseline_transformer"
+BASELINES="mlp cnn transformer gnn nbp cider_direct cider_gru_direct mpa"
 IS_BASELINE=false
 for b in $BASELINES; do
     if [ "$MODEL" == "$b" ]; then

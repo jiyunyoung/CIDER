@@ -58,7 +58,7 @@ DEVICE="cuda"
 # Paths
 # ============================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$~/demix/tiny_K3"
+OUTPUT_DIR="${HOME}/data/demix/tiny_K3"
 
 # ============================================================
 # Print Configuration
