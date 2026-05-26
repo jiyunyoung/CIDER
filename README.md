@@ -3,8 +3,8 @@
 **Codeword Demixing with Error correction and Recurrent inference** — a diffusion-based decoder for multi-user random access over GF(*Q*) LDPC codes.
 
 Code for **Structured Masked Diffusion for Joint Multiuser Decoding**<br>
-Taekyun Lee<sup>*</sup>, Jiyoung Yun<sup>*</sup>, Jeffrey Andrews, Hyeji Kim<br>
-<sup>*</sup>Equal contribution.<br>
+Taekyun Lee<sup>&ast;</sup>, Jiyoung Yun<sup>&ast;</sup>, Jeffrey Andrews, Hyeji Kim<br>
+<sup>&ast;</sup>Equal contribution.<br>
 arXiv: TBD
 
 CIDER performs **joint error correction and multi-user demixing** of colliding codewords. Given soft per-position likelihoods from an inner channel decoder, it recovers the *K* active users' codewords via MaskGIT-style discrete masked diffusion with iterative confidence-based unmasking, plus a lightweight **PRISM** quality head for self-correction at higher user loads.
