@@ -1,0 +1,9 @@
+# GNN Baseline Configuration
+# @package _global_.model
+
+backbone_type: gnn
+
+# GNN architecture (~3.5M params for tiny_ldpc)
+D_model: 256
+num_layers: 5
+dropout: 0.1

@@ -1,0 +1,11 @@
+# Exhaustive Search Baseline for LDPC Demixing
+# Pick top-2 candidates per position, exhaustive search with parity pruning
+
+name: top_j_exhaustive_search
+
+# Search parameters
+beam_width: 100      # Ignored (no beam pruning, only parity pruning)
+proposal_width: 2    # L=2: top-2 candidates per position
+
+# Complexity: O(L^K per position, pruned by parity)
+# For L=2, K=2: 4 combinations per position

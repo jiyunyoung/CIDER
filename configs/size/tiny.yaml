@@ -1,0 +1,9 @@
+# @package _global_
+# Size: tiny (smallest model)
+# ~1-2M parameters
+
+model:
+  D_model: 128
+  num_layers: 4
+  heads: 4
+  inference_steps: 12

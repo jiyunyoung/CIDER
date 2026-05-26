@@ -1,0 +1,10 @@
+# MPA: Message Passing Attention
+
+name: mpa
+
+# Architecture (tiny size: ~3.6M params)
+D_model: 128
+num_layers: 4
+heads: 4
+mlp_ratio: 4
+dropout: 0.1

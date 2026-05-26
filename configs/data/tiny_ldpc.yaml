@@ -1,0 +1,13 @@
+# @package _global_
+# Dataset: tiny_LDPC
+# Q=64, N=12, K=2, M=8
+
+data_dir: ~/data/demix/tiny_LDPC/
+
+data:
+  name: tiny_ldpc
+  Q: 64
+  N: 12
+  K_true: 2
+  K_max: 2
+  M: 8

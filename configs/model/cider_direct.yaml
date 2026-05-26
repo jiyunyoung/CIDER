@@ -1,0 +1,19 @@
+
+# Backbone type (for main.py routing)
+backbone_type: cider_direct
+
+# =========================
+# Architecture (size from size config)
+# =========================
+mlp_ratio: 4
+dropout: 0.1
+
+# =========================
+# Slot responsibility parameters
+# =========================
+tau_min: 0.2       # temperature floor (prevents too-sharp softmax)
+
+# =========================
+# Slot initialization
+# =========================
+slot_init_scale: 0.5   # orthogonal init scale

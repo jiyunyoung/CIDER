@@ -1,0 +1,23 @@
+# configs/model/cider_gru.yaml
+
+# Backbone type (for diffusion.py)
+backbone_type: cider_gru
+
+# Use discrete MASK tokens during training (false) or soft beliefs (true)
+use_soft_input: false
+
+# =========================
+# Architecture (size from size config)
+# =========================
+mlp_ratio: 4
+dropout: 0.1
+
+# =========================
+# Slot responsibility parameters
+# =========================
+tau_min: 0.2       # temperature floor (prevents too-sharp softmax)
+
+# =========================
+# Slot initialization
+# =========================
+slot_init_scale: 0.5   # orthogonal init scale (try 0.1-0.2 for Q=256)

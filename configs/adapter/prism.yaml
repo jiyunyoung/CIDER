@@ -1,0 +1,25 @@
+# Quality Head Training Configuration
+# Train token-quality predictor on frozen backbone
+
+# Quality head architecture
+quality_head:
+  hidden_dim: 256
+  dropout: 0.1              # light regularization (labels are noisy from sampling)
+  use_slot_context: false   # set true to concat slot summary to each token
+
+# PRISM sampler settings
+sampler:
+  k_per_slot: 4          # positions to supervise per slot
+  n_y: 8                 # samples per masked input
+  temperature: 1.0       # sampling temperature (increase for diversity)
+  selection_mode: random # 'random' or 'topk'
+
+# Masking (match backbone training)
+masking:
+  gamma_min: 0.1
+  gamma_max: 1.0
+
+# Training
+lr: 1e-3
+weight_decay: 0.01
+num_epochs: 50

@@ -1,0 +1,9 @@
+# Factorized BP Decoder for LDPC Demixing
+# Iterative BP with explain-away mechanism
+
+name: sic_bp
+
+# BP parameters
+max_iters: 5          # Maximum BP iterations (converges in ~5 iters)
+damping: 0.5          # Message damping (0-1)
+explain_strength: 0.9 # How strongly to explain away other users (0-1)

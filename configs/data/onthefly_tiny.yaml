@@ -1,0 +1,17 @@
+# @package _global_
+# On-the-fly Q-ary LDPC matching tiny_LDPC (Q=64, N=12, K=2, M=8).
+# Test split uses fixed_seed=199999 (see dataloader.py:_get_onthefly_dataloaders).
+
+data_dir: ~/data/demix/tiny_LDPC/
+
+data:
+  name: onthefly_tiny
+  Q: 64
+  N: 12
+  K_true: 2
+  K_max: 2
+  M: 8
+  Eb_dB: 10.0      # default; override per-run via CLI
+  n_s: 24
+  sigma2: 1.0
+  num_test_samples: 1000

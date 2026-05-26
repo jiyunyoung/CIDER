@@ -1,0 +1,13 @@
+# @package _global_
+# Dataset: large_LDPC
+# Q=256, N=36, K=2, M=24
+
+data_dir: ~/data/demix/large_LDPC/
+
+data:
+  name: large_ldpc
+  Q: 64
+  N: 48
+  K_true: 2
+  K_max: 2
+  M: 32

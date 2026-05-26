@@ -1,0 +1,58 @@
+# Main configuration file for Masked Diffusion Demixing
+# Uses Hydra for composition and CLI overrides
+#
+# Usage:
+#   python main.py data=tiny_naive size=tiny model=dimp
+#   python main.py data=small_naive size=small model=dibp
+#   python main.py data=large_naive size=large_bp model=dimp
+#
+# Config groups:
+#   - data: dataset path and properties (Q, N, K, M)
+#   - size: model dimensions (D_model, num_layers, heads)
+#   - model: architecture type and settings (dimp, dibp, dit)
+
+defaults:
+  - _self_
+  - data: tiny_ldpc
+  - size: tiny
+  - model: cider
+  - training: default
+
+# Run mode: train, adapter_finetune, eval
+mode: train
+
+# Experiment type: null=diffusion.py, any value=diffusion_new.py (experimental)
+exp: null
+
+# Paths
+# data_dir: comes from data config (e.g., data/tiny_spread.yaml)
+checkpoint_dir: checkpoints/
+log_dir: logs/
+
+# Experiment name (for checkpoint directory, defaults to model name if null)
+experiment_name: null
+
+# Evaluation parameters
+checkpoint_path: null       # Path to checkpoint for eval/adapter_finetune mode
+eval_split: test            # Which split to evaluate on: train, val, or test
+
+# Optimizer configuration
+optim:
+  lr: 1e-3
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.99
+  eps: 1e-8
+
+# Adapter training configuration (for mode=adapter_finetune)
+adapter_training:
+  enabled: false                    # Automatically set to true in adapter_finetune mode
+  tune_backbone: false              # Keep backbone frozen (or true to fine-tune both)
+  loss_type: corrector_cross_entropy  # remasking_cross_entropy or corrector_cross_entropy
+
+# Hydra configuration
+hydra:
+  run:
+    dir: .hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: false  # Keep working directory at project root for cleaner checkpoint handling

@@ -1,0 +1,9 @@
+# @package _global_
+# Size: moderate
+# ~8-12M parameters
+
+model:
+  D_model: 128
+  num_layers: 6
+  heads: 4
+  inference_steps: 20

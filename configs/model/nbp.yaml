@@ -1,0 +1,9 @@
+# Unfolded BP Baseline Configuration
+
+backbone_type: nbp
+
+# Unfolded BP architecture (~3.4M params for tiny_ldpc)
+D_model: 256
+num_layers: 6  # number of unfolded iterations
+mlp_ratio: 4
+dropout: 0.1

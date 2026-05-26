@@ -1,0 +1,24 @@
+
+# Backbone type (for main.py routing)
+backbone_type: cider_iterative
+
+# =========================
+# Architecture (size from size config)
+# =========================
+mlp_ratio: 4
+dropout: 0.1
+
+# =========================
+# Iterative refinement
+# =========================
+num_iters: 8    # number of iterative passes (no masking)
+
+# =========================
+# Slot responsibility parameters
+# =========================
+tau_min: 0.2       # temperature floor (prevents too-sharp softmax)
+
+# =========================
+# Slot initialization
+# =========================
+slot_init_scale: 0.5   # orthogonal init scale

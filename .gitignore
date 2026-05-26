@@ -1,0 +1,78 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# =============================================================================
+# Editors / OS
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Training artifacts (regenerable, often large)
+# =============================================================================
+checkpoints/
+logs/
+lightning_logs/
+wandb/
+mlruns/
+runs/
+tmp/
+debug/
+backup/
+.hydra_outputs/
+outputs/
+multirun/
+
+# =============================================================================
+# Generated datasets and binary tensors (regenerated from gen_data scripts)
+# =============================================================================
+data/gen_data/datasets/
+data/scale_sweep/
+*.pt
+*.ckpt
+*.pth
+*.npz
+
+# =============================================================================
+# Reference materials (large, not source)
+# =============================================================================
+*.pdf
+papers/
+
+# =============================================================================
+# Project-specific
+# =============================================================================
+single_user/
+tests/
+
+# Local rsync helper kept out of source control
+.rsyncignore
+
+# Local secrets / API keys
+.envrc
+secrets/
+*.key
+*.pem

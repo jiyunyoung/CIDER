@@ -1,0 +1,15 @@
+# configs/model/mdd.yaml
+
+# Backbone type (for diffusion.py)
+backbone_type: mdd
+
+# Use discrete MASK tokens during training (false) or soft beliefs (true)
+use_soft_input: false
+# =========================
+# Architecture (size from data config)
+# =========================
+mlp_ratio: 4
+dropout: 0.1
+
+# Adapter configuration
+adapter_type: mlp

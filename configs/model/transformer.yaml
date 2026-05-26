@@ -1,0 +1,11 @@
+# Transformer Baseline for Codeword Demixing
+# One-shot prediction (no diffusion)
+
+name: transformer
+
+# Architecture (~7.5M params)
+d_model: 256
+num_layers: 8
+num_heads: 8
+d_ff: 1280
+dropout: 0.1

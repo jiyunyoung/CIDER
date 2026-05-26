@@ -1,0 +1,13 @@
+# @package _global_
+# Dataset: tiny_tree (Tree Code over GF(64))
+# Q=64, N=12, K=2, M=8 (same dimensions as tiny_ldpc, different code structure)
+
+data_dir: ~/data/demix/tiny_tree/
+
+data:
+  name: tiny_tree
+  Q: 64
+  N: 12
+  K_true: 2
+  K_max: 2
+  M: 8

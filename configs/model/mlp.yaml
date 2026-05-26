@@ -1,0 +1,9 @@
+# MLP Baseline for Codeword Demixing
+# One-shot prediction (no diffusion)
+
+name: mlp
+
+# Architecture
+hidden_dim: 700
+num_layers: 10
+dropout: 0.1

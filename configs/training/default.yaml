@@ -1,0 +1,72 @@
+# Default training configuration
+# @package _global_.training
+
+batch_size: 128
+num_epochs: 100
+learning_rate: 1.0e-3
+
+# Capacity testing (0 = disabled, N = overfit on first N batches)
+overfit_batches: 0
+
+# EMA (Exponential Moving Average)
+ema: 0.9999  # Set to 0 to disable
+
+# Warmup
+warmup_epochs: 10
+min_lr_ratio: 0.01
+
+# =========================
+# Masking / Diffusion Curriculum
+# =========================
+mask_gamma_min: 0.1
+mask_gamma_max: 1.0
+mask_warmup_epochs: 4
+mask_p_full: 0.15
+inference_steps: 16
+
+# Device
+device: cuda
+precision: "16-mixed"
+
+# Optimization
+optimizer:
+  type: adamw
+  weight_decay: 0.01
+
+scheduler:
+  enabled: true
+  type: cosine  # Options: cosine, reduce_on_plateau, step
+  # Cosine annealing params
+  T_max: null  # If null, uses num_epochs
+  eta_min: 1e-6  # Minimum LR
+  # ReduceOnPlateau params
+  patience: 10
+  factor: 0.5
+  # Step scheduler params
+  step_size: 30
+  gamma: 0.1
+
+# Data loading
+num_workers: 4
+pin_memory: true
+persistent_workers: true
+
+# Logging
+log_every_n_steps: 1
+val_check_interval: 1.0  # validate every epoch
+
+# Checkpointing
+save_top_k: 1          # Save only the best model
+monitor: val/accuracy  # Monitor accuracy instead of loss
+mode: max              # Higher accuracy is better
+
+# WandB logging
+wandb:
+  enabled: false   # disabled by default — opt in with training.wandb.enabled=true
+  project: muecc-demixing
+  entity: null
+  name: null  # Run name (null = auto-generated)
+  notes: "Masked Diffusion for multiuser codeword demixing"
+  tags:
+    - mdm
+    - demixing
