@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Evaluate rule-based decoders (sic_bp, top_j_es) on test data.
+Evaluate rule-based decoders on test data.
 
 Usage:
     python inference/eval_rules.py sic_bp tiny_ldpc

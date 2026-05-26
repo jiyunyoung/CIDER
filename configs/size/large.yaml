@@ -3,7 +3,7 @@
 # ~7M parameters
 
 model:
-  D_model: 512
-  num_layers: 6
+  D_model: 128
+  num_layers: 8
   heads: 4
-  inference_steps: 12
+  inference_steps: 24
