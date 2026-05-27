@@ -1,11 +1,14 @@
-# CIDER
+# CIDER 🍎
+
+<h2 align="center">Structured Masked Diffusion for Joint Multiuser Decoding</h2>
+
+<p align="center">
+  Taekyun Lee<sup>&ast;</sup>, Jiyoung Yun<sup>&ast;</sup>, Jeffrey Andrews, Hyeji Kim<br>
+  <sup>&ast;</sup>Equal contribution<br>
+  <a href="https://arxiv.org/abs/2605.26580">arXiv:2605.26580</a>
+</p>
 
 **Codeword Demixing with Error correction and Recurrent inference** — a diffusion-based decoder for multi-user random access over GF(*Q*) LDPC codes.
-
-Code for **Structured Masked Diffusion for Joint Multiuser Decoding**<br>
-Taekyun Lee<sup>&ast;</sup>, Jiyoung Yun<sup>&ast;</sup>, Jeffrey Andrews, Hyeji Kim<br>
-<sup>&ast;</sup>Equal contribution.<br>
-arXiv: TBD
 
 CIDER performs **joint error correction and multi-user demixing** of colliding codewords. Given soft per-position likelihoods from an inner channel decoder, it recovers the *K* active users' codewords via MaskGIT-style discrete masked diffusion with iterative confidence-based unmasking, plus a lightweight **PRISM** quality head for self-correction at higher user loads.
 
@@ -157,3 +160,18 @@ scripts/                Training / evaluation shell wrappers
 - **Diffusion checkpoints:** `checkpoints/{data}_{size}_{model}/best_model.ckpt`
 - **Baseline checkpoints:** `checkpoints/{data}_{model}/best_model.ckpt`
 - **Data paths:** `~/data/demix/tiny_LDPC/`, `~/data/demix/small_LDPC/`, `~/data/demix/moderate_LDPC/`, `~/data/demix/large_LDPC/`
+
+## Citation
+
+If you use this code, please cite the arXiv version:
+
+```bibtex
+@misc{lee2026structuredmaskeddiffusion,
+  title        = {Structured Masked Diffusion for Joint Multiuser Decoding},
+  author       = {Lee, Taekyun and Yun, Jiyoung and Andrews, Jeffrey and Kim, Hyeji},
+  year         = {2026},
+  eprint       = {2605.26580},
+  archivePrefix = {arXiv},
+  url          = {https://arxiv.org/abs/2605.26580}
+}
+```
