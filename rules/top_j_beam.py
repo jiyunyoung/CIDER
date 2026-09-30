@@ -62,6 +62,7 @@ class BeamTopJDecoder:
         self.L = proposal_width
         self.max_pairs = max_pairs
         self.chunk = chunk
+        self._subsets = {}
         # seq_split > 0: fix the top-L choice at the first `seq_split` positions
         # and run the beam over the remaining positions once per prefix,
         # SEQUENTIALLY (L**seq_split passes). Peak memory drops ~L**seq_split x
@@ -235,6 +236,50 @@ class BeamTopJDecoder:
 
     # ------------------------------------------------------------------
     @torch.no_grad()
+    def _joint_select(self, cw, ll, valid, topL):
+        """Best K-subset of candidates: coverage first, then summed loglik.
+
+        A position is covered when every symbol is in the top-L list and the
+        d distinct symbols are the d strongest (the K=2 rule for any K).
+        """
+        S, Vp, N = cw.shape
+        K, L = self.K, self.L
+        key = (Vp, K)
+        if key not in self._subsets:
+            self._subsets[key] = torch.combinations(
+                torch.arange(Vp, device=self.dev), r=K)
+        sub = self._subsets[key]                                         # [P,K]
+        P = sub.shape[0]
+
+        eq = cw.unsqueeze(-1) == topL.unsqueeze(1)                       # [S,V,N,L]
+        rank = torch.where(eq.any(-1), eq.to(torch.uint8).argmax(-1),
+                           torch.full_like(cw, L))
+        bit = torch.bitwise_left_shift(torch.ones_like(rank), rank)      # [S,V,N]
+
+        NEG = torch.finfo(ll.dtype).min / 4
+        best_sc = torch.full((S,), float('-inf'), dtype=ll.dtype, device=self.dev)
+        best_p = torch.zeros(S, dtype=torch.long, device=self.dev)
+        step = max(1, (1 << 25) // (S * N))
+        for p0 in range(0, P, step):
+            sp = sub[p0:p0 + step]                                       # [Pc,K]
+            bits = bit[:, sp[:, 0]]                                      # [S,Pc,N]
+            lls = ll[:, sp[:, 0]]
+            ok = valid[:, sp[:, 0]]
+            for k in range(1, K):
+                bits = bits | bit[:, sp[:, k]]
+                lls = lls + ll[:, sp[:, k]]
+                ok = ok & valid[:, sp[:, k]]
+            d = sum((bits >> j) & 1 for j in range(L))
+            covered = (bits < (1 << L)) & ((d == K) | (bits == (1 << d) - 1))
+            sc = covered.sum(-1).to(ll.dtype) * 1e6 + lls
+            sc = torch.where(ok, sc, torch.full_like(sc, NEG))
+            m, a = sc.max(dim=1)
+            better = m > best_sc
+            best_sc = torch.where(better, m, best_sc)
+            best_p = torch.where(better, a + p0, best_p)
+        pick = sub[best_p]                                               # [S,K]
+        return torch.gather(cw, 1, pick.unsqueeze(-1).expand(-1, -1, N))
+
     def decode_batch(self, Y_batch, as_numpy: bool = True):
         """Y_batch: [S,N,Q] -> codewords [S,K,N] (numpy, or a device tensor if as_numpy=False)."""
         if isinstance(Y_batch, np.ndarray):
@@ -290,6 +335,11 @@ class BeamTopJDecoder:
                 gid = best.view(-1, 1, 1).expand(-1, 1, N)
                 out[lo:hi, 0] = a.gather(1, gid).squeeze(1)
                 out[lo:hi, 1] = b.gather(1, gid).squeeze(1)
+        elif K > 2 and Vp >= K:
+            for lo in range(0, S, self.chunk):
+                hi = min(lo + self.chunk, S)
+                out[lo:hi] = self._joint_select(cw[lo:hi], ll[lo:hi],
+                                                valid[lo:hi], topL[lo:hi])
         else:
             kk = min(K, Vp)
             idx = torch.topk(ll, kk, dim=1).indices                      # [S,kk]
