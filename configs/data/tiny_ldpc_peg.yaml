@@ -1,0 +1,14 @@
+# @package _global_
+# Dataset: tiny_LDPC_PEG
+# Same parameters as tiny_LDPC but with a PEG-constructed H matrix
+# (data/gen_data/ldpc_tiny_peg.sh). Q=64, N=12, K=2, M=8
+
+data_dir: ~/data/demix/tiny_LDPC_PEG/
+
+data:
+  name: tiny_ldpc_peg
+  Q: 64
+  N: 12
+  K_true: 2
+  K_max: 2
+  M: 8

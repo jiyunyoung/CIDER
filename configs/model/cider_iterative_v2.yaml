@@ -1,0 +1,52 @@
+# configs/model/cider_iterative_v2.yaml
+#
+# Ablation A2: strong non-diffusion iterative refinement (reviewer 9PDj).
+# Same Module A (demixing) + Module B (parity-aware MP) as CIDER, same depth,
+# width and parameter count -- the ONLY difference is that refinement is soft
+# iterative feedback instead of masked diffusion.
+#
+# Requires a size config, exactly like cider:
+#   python main.py mode=train data=tiny_ldpc size=tiny model=cider_iterative_v2
+
+backbone_type: cider_iterative_v2
+
+# =========================
+# Architecture (D_model / num_layers / heads / inference_steps from size config)
+# =========================
+mlp_ratio: 4
+dropout: 0.1
+mp_per_layer: 2        # 2 = published CIDER architecture
+
+# =========================
+# Iterative refinement
+# =========================
+# num_iters: null -> falls back to the size config's inference_steps, which
+# matches CIDER's NFE count. Override to sweep T at train time.
+num_iters: null
+
+# 'soft'   : feed back the Q-simplex posterior. Exact parameter match with CIDER,
+#            and already a wider inter-step channel than masked diffusion's
+#            discrete token sequence.
+# 'hard'   : feed back argmax tokens -- the input distribution the backbone sees
+#            under CIDER's use_soft_input=false. Pair with unroll_mode=sampled.
+# 'hidden' : additionally carry a D-dim GRU state across iterations (+3D^2 params).
+feedback: soft
+
+# 'sampled' : one gradient-bearing pass per step at a random iteration index --
+#             the same training budget as CIDER's random-t sampling.
+# 'full'    : BPTT through all T unrolls with deep supervision (more compute
+#             than CIDER gets; favours the baseline). Practical for small T.
+unroll_mode: sampled
+
+# Deep-supervision weights over iterations (unroll_mode=full only).
+deep_supervision: linear   # linear | uniform | final
+
+# =========================
+# Slot responsibility parameters
+# =========================
+tau_min: 0.2
+
+# =========================
+# Slot initialization
+# =========================
+slot_init_scale: 0.5

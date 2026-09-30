@@ -72,7 +72,8 @@ class EdgeSelfAttention(nn.Module):
     Edge-based self-attention for check node processing.
     Implements extrinsic property: each edge (j,i) attends to other edges (j,l) where l≠i.
     """
-    def __init__(self, D_model: int, num_heads: int, dropout: float = 0.1):
+    def __init__(self, D_model: int, num_heads: int, dropout: float = 0.1,
+                 use_sdpa: bool = False):
         super().__init__()
         assert D_model % num_heads == 0
         self.D = D_model
@@ -85,7 +86,12 @@ class EdgeSelfAttention(nn.Module):
         self.o_proj = nn.Linear(D_model, D_model)
 
         self.dropout = nn.Dropout(dropout)
+        self.dropout_p = float(dropout)
         self.scale = 1.0 / math.sqrt(self.dh)
+        # Fuse scores/mask/softmax/matmul into one SDPA call. Same math, ~10
+        # kernels collapsed into 1 -- which is what matters at bs=1, where the
+        # decoder is bound by kernel count rather than arithmetic.
+        self.use_sdpa = bool(use_sdpa)
 
     def forward(
         self,
@@ -102,21 +108,34 @@ class EdgeSelfAttention(nn.Module):
         K = K.permute(0, 2, 1, 3)
         V = V.permute(0, 2, 1, 3)
 
-        scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        # Extrinsic mask: an edge never attends to itself (diagonal), and
+        # padded keys are excluded.
+        diag = torch.eye(d_c, dtype=torch.bool, device=edge_tokens.device)
+        key_mask = ~pad_mask.unsqueeze(1).unsqueeze(2)        # [BM,1,1,d_c]
 
-        # Extrinsic mask: exclude self (diagonal)
-        diag_mask = torch.eye(d_c, dtype=torch.bool, device=edge_tokens.device)
-        scores = scores.masked_fill(diag_mask.unsqueeze(0).unsqueeze(0), -1e4)
+        if self.use_sdpa:
+            # allow[b,h,i,j] = (i != j) and key j is real
+            allow = (~diag).unsqueeze(0).unsqueeze(0) & (~key_mask)
+            # A query whose row is fully masked would softmax over all -inf and
+            # produce NaN. The eager path used a finite -1e4 and so degraded to
+            # a uniform average instead. Re-open such rows to keep the two
+            # paths numerically comparable and NaN-free.
+            dead = ~allow.any(dim=-1, keepdim=True)
+            allow = allow | dead
+            out = F.scaled_dot_product_attention(
+                Q, K, V, attn_mask=allow,
+                dropout_p=self.dropout_p if self.training else 0.0,
+                scale=self.scale)
+        else:
+            scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+            scores = scores.masked_fill(diag.unsqueeze(0).unsqueeze(0), -1e4)
+            scores = scores.masked_fill(key_mask, -1e4)
 
-        # Padding mask
-        key_mask = ~pad_mask.unsqueeze(1).unsqueeze(2)
-        scores = scores.masked_fill(key_mask, -1e4)
+            attn = F.softmax(scores, dim=-1)
+            attn = attn.masked_fill(key_mask, 0.0)
+            attn = self.dropout(attn)
+            out = torch.matmul(attn, V)
 
-        attn = F.softmax(scores, dim=-1)
-        attn = attn.masked_fill(key_mask, 0.0)
-        attn = self.dropout(attn)
-
-        out = torch.matmul(attn, V)
         out = out.permute(0, 2, 1, 3).reshape(BM, d_c, D)
 
         out = self.o_proj(out)
@@ -197,13 +216,13 @@ class SlotResponsibilityBlock(nn.Module):
 # ============================================================
 class NeuralMPBlock(nn.Module):
     """Neural Message Passing block using edge-based self-attention."""
-    def __init__(self, D_model: int, num_heads: int, Q_field: int, dropout: float = 0.1, mlp_ratio: int = 4):
+    def __init__(self, D_model: int, num_heads: int, Q_field: int, dropout: float = 0.1, mlp_ratio: int = 4, use_sdpa: bool = False):
         super().__init__()
         self.D = D_model
         self.Q = Q_field
 
         self.vn_norm = nn.LayerNorm(D_model, elementwise_affine=False)
-        self.edge_attn = EdgeSelfAttention(D_model, num_heads, dropout)
+        self.edge_attn = EdgeSelfAttention(D_model, num_heads, dropout, use_sdpa=use_sdpa)
         self.edge_norm = nn.LayerNorm(D_model, elementwise_affine=False)
 
         self.energy_head = nn.Sequential(
@@ -388,6 +407,8 @@ class DiMP(nn.Module):
         dropout: float = 0.1,
         tau_min: float = 0.2,
         slot_init_scale: float = 0.5,
+        mp_per_layer: int = 2,
+        use_sdpa: bool = False,
         **kwargs
     ):
         super().__init__()
@@ -397,6 +418,14 @@ class DiMP(nn.Module):
         self.M = int(M)
         self.D = int(D_model)
         self.num_layers = int(num_layers)
+        # Tanner message-passing rounds inside one denoiser block (Module B).
+        # Default 2 reproduces the published architecture exactly, so existing
+        # checkpoints keep loading; varying it isolates Module B's depth from
+        # Module A's depth, which num_layers moves jointly.
+        self.mp_per_layer = int(mp_per_layer)
+        # Fused scaled_dot_product_attention in the edge attention.
+        # Default False keeps the published numerics bit-exact.
+        self.use_sdpa = bool(use_sdpa)
         self.heads = int(heads)
 
         self.MASK_TOKEN = self.Q
@@ -432,11 +461,12 @@ class DiMP(nn.Module):
             for _ in range(self.num_layers)
         ])
 
-        # Neural MP blocks (2 per layer)
+        # Neural MP blocks (mp_per_layer per denoiser block; 2 by default)
         self.mp_blocks = nn.ModuleList([
             nn.ModuleList([
-                NeuralMPBlock(self.D, self.heads, self.Q, dropout=dropout, mlp_ratio=mlp_ratio)
-                for _ in range(2)
+                NeuralMPBlock(self.D, self.heads, self.Q, dropout=dropout,
+                              mlp_ratio=mlp_ratio, use_sdpa=self.use_sdpa)
+                for _ in range(self.mp_per_layer)
             ])
             for _ in range(self.num_layers)
         ])
@@ -519,8 +549,16 @@ class DiMP(nn.Module):
         self,
         X_t: torch.Tensor,
         soft_input: bool,
+        slot_scale: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Build initial VN from X_t using shared W_base."""
+        """Build initial VN from X_t using shared W_base.
+
+        slot_scale (a 0-dim tensor) multiplies slot_init for this call only,
+        used by the PRISM remasking sampler so it need NOT rewrite
+        slot_init.data. Reassigning a parameter's storage changes its address,
+        which triggers CUDA-graph's data_ptr assertion once the PRISM path is
+        compiled. None => unscaled; default keeps every original caller
+        bit-identical (slot_init * None-branch == slot_init)."""
         if soft_input:
             X_soft = X_t
             B, K, N, Q_dim = X_soft.shape
@@ -530,7 +568,8 @@ class DiMP(nn.Module):
             X_idx = X_t.long().clamp(0, self.Q)
             x_sym = self.W_base[X_idx]
 
-        VN = x_sym + self.slot_init.view(1, K, 1, self.D)
+        s = self.slot_init if slot_scale is None else self.slot_init * slot_scale
+        VN = x_sym + s.view(1, K, 1, self.D)
         return VN
 
     def forward(
@@ -541,8 +580,17 @@ class DiMP(nn.Module):
         t: torch.Tensor,
         H: torch.Tensor,
         soft_input: bool = False,
+        vn_init: Optional[torch.Tensor] = None,
+        return_vn: bool = False,
+        slot_scale: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Returns logits [B, K, N, Q]."""
+        """Returns logits [B, K, N, Q].
+
+        vn_init/return_vn are optional hooks used by the iterative-refinement
+        ablation (models/cider_iterative_v2.py) to carry a hidden state across
+        outer iterations. Both default to the published behaviour: vn_init=None
+        builds VN from X_t exactly as before, and no new parameters are added.
+        """
         assert H is not None
         self._build_tanner_cache(H)
 
@@ -559,7 +607,7 @@ class DiMP(nn.Module):
         t_emb = self.time_mlp(self.time_embed(t))
         t_emb_flat = t_emb.unsqueeze(1).expand(B, K, self.D).reshape(B * K, self.D)
 
-        VN = self._build_initial_vn(X_t, soft_input)
+        VN = self._build_initial_vn(X_t, soft_input, slot_scale) if vn_init is None else vn_init
 
         for slot_block, mp_blocks_layer, update_block in zip(
             self.slot_blocks, self.mp_blocks, self.update_blocks
@@ -584,6 +632,8 @@ class DiMP(nn.Module):
         VN = self.out_norm(VN)
         logits = self.output_proj(VN)
 
+        if return_vn:
+            return logits, VN
         return logits
 
     def get_hidden_states(
@@ -593,7 +643,8 @@ class DiMP(nn.Module):
         syn: torch.Tensor,
         t: torch.Tensor,
         H: torch.Tensor,
-        soft_input: bool = False
+        soft_input: bool = False,
+        slot_scale: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Returns: (logits, hidden_states, t_emb)"""
         assert H is not None
@@ -610,7 +661,7 @@ class DiMP(nn.Module):
         t_emb = self.time_mlp(self.time_embed(t))
         t_emb_flat = t_emb.unsqueeze(1).expand(B, K, self.D).reshape(B * K, self.D)
 
-        VN = self._build_initial_vn(X_t, soft_input)
+        VN = self._build_initial_vn(X_t, soft_input, slot_scale)
 
         for slot_block, mp_blocks_layer, update_block in zip(
             self.slot_blocks, self.mp_blocks, self.update_blocks

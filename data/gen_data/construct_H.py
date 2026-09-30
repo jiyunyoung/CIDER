@@ -1,13 +1,35 @@
 #!/usr/bin/env python3
 """
-Construct LDPC parity-check matrix H using protograph-based QC construction.
+Construct a GF(q) LDPC parity-check matrix H and its encoding matrices.
 
-This script creates H matrix with uniform syndrome mixing and saves all
-encoding matrices needed for data generation.
+Every code used in the paper is (d_v, d_c) = (2, 3)-regular, rate 1/3
+(L = 3M/2). With d_v = 2 each variable node is an edge of a cubic "check
+graph" on the M checks, so the Tanner girth is twice the check-graph girth.
+The connectivity is FIXED and deterministic, chosen to avoid short cycles;
+only the nonzero edge coefficients are random (np.random.seed(seed), one
+uniform draw from GF(q)^* per edge):
+
+    L=12, M=8    tiny_ldpc_H          3-cube check graph,        Tanner girth 8
+    L=18, M=12   small_ldpc_H         cubic 12-vertex graph,     Tanner girth 10
+    L=24, M=16   moderate_ldpc_H      Moebius ladder M16,        Tanner girth 8
+    L=48, M=32   large_mobius_ldpc_H  Moebius ladder M32,        Tanner girth 8
+    L=36, M=24   large_ldpc_H         legacy hand-designed code, Tanner girth 10
+    other L=3M/2 mobius_ldpc_H        Moebius ladder M_M (e.g. the L=72/96
+                                      length-transfer targets), Tanner girth 8
+
+Any other (L, M, d_v, d_c) falls back to the protograph/QC-PEG construction
+in ldpc_codes_torch.peg_ldpc_qary. The PEG-LDPC code of the paper's appendix
+is built separately by construct_H_peg.py.
+
+With seed=42 this reproduces the H matrices of ~/data/demix/{tiny,small,
+moderate,large}_LDPC exactly.
 
 Usage:
     python construct_H.py --q 64 --L 12 --M 8 --d_v 2 --d_c 3 --output H_matrix.pt
     python construct_H.py --q 64 --L 12 --M 8 --d_v 2 --d_c 3 --output H_matrix.pt --show
+    # L=72 / L=96 length-transfer targets (Table: tab:response_transfer)
+    python construct_H.py --q 64 --L 72 --M 48 --d_v 2 --d_c 3 --output H_matrix.pt
+    python construct_H.py --q 64 --L 96 --M 64 --d_v 2 --d_c 3 --output H_matrix.pt
 """
 
 import argparse
@@ -25,7 +47,7 @@ from ldpc_codes_torch import peg_ldpc_qary, make_systematic_from_H, _gcd
 
 def tiny_ldpc_H(q, seed=42):
     """
-    Construct H matrix for tiny (8, 12) LDPC code with high girth.
+    Construct H matrix for tiny (8, 12) LDPC code.
 
     This gives a (8, 12) LDPC code with:
     - L = 12 variables (codeword length)
@@ -33,7 +55,9 @@ def tiny_ldpc_H(q, seed=42):
     - d_v = 2 (column weight)
     - d_c = 3 (row weight)
     - k = 4 (info symbols)
-    - High girth structure
+    - Fixed connectivity: the check graph is the 3-cube, so the Tanner girth
+      is 8 (the maximum for a (2,3)-regular code of this size). Only the
+      edge coefficients depend on the seed.
     """
     GF = galois.GF(q)
     np.random.seed(seed)
@@ -83,9 +107,8 @@ def large_ldpc_H(q, seed=42):
     - d_v = 2 (column weight)
     - d_c = 3 (row weight)
     - k = 12 (info symbols)
-    - High girth structure
-
-    Based on a specific edge assignment with good cycle properties.
+    - Fixed hand-designed connectivity, Tanner girth 10 (legacy; not used
+      in the paper, whose L=48 code is large_mobius_ldpc_H)
     """
     GF = galois.GF(q)
     np.random.seed(seed)
@@ -151,7 +174,7 @@ def large_ldpc_H(q, seed=42):
 
 def small_ldpc_H(q, seed=42):
     """
-    Construct H matrix for (12, 18) LDPC code with high girth.
+    Construct H matrix for (12, 18) LDPC code.
 
     This gives a (12, 18) LDPC code with:
     - L = 18 variables (codeword length)
@@ -159,7 +182,8 @@ def small_ldpc_H(q, seed=42):
     - d_v = 2 (column weight)
     - d_c = 3 (row weight)
     - k = 6 (info symbols)
-    - High girth structure
+    - Fixed connectivity: a cubic 12-vertex check graph of girth 5, so the
+      Tanner girth is 10. Only the edge coefficients depend on the seed.
     """
     GF = galois.GF(q)
     np.random.seed(seed)
@@ -215,7 +239,7 @@ def moderate_ldpc_H(q, seed=42):
     - d_v = 2 (column weight)
     - d_c = 3 (row weight)
     - k = 8 (info symbols)
-    - Girth = 8 (no 4-cycles or 6-cycles)
+    - Tanner girth = 8 (no 4-cycles or 6-cycles)
 
     Structure:
     - Cycle edges (v0-v15): vi connects to (c_i, c_{i+1 mod 16})
@@ -274,7 +298,7 @@ def large_mobius_ldpc_H(q, seed=42):
     - d_v = 2 (column weight)
     - d_c = 3 (row weight)
     - k = 16 (info symbols)
-    - No 4-cycles (high girth)
+    - Tanner girth = 8 (no 4-cycles or 6-cycles)
 
     Structure:
     - Cycle edges (v0-v31): vi connects to (c_i, c_{i+1 mod 32})
@@ -339,9 +363,58 @@ def large_mobius_ldpc_H(q, seed=42):
     return H, var_to_chk, chk_to_var
 
 
+def mobius_ldpc_H(q, M, seed=42):
+    """Generalized Möbius-ladder (M_M) LDPC for ANY even M.
+
+    d_v=2, d_c=3, L = 3M/2 -- the same fixed-graph family as moderate_ldpc_H
+    and large_mobius_ldpc_H, extended to arbitrary size. Used for the L=72/96
+    length-transfer targets (M=48/64).
+
+    - cycle variables   i in [0, M):      var i     ~ checks {i, (i+1) mod M}
+    - chord  variables  M+i in [M, 3M/2): var M+i   ~ checks {i, i + M/2}
+
+    No 4-cycle: two variables never share both checks -- cycle pairs differ by 1,
+    chord pairs differ by M/2 (>1 for M>2), and a cycle pair {i,i+1} can never equal
+    a chord pair {k,k+M/2}. Each check gets degree 3 (in 2 cycle vars + 1 chord var).
+    For M >= 8 the check graph has girth 4, so the Tanner girth is 8.
+
+    Note the edge-coefficient draw order (variable-major) differs from the
+    check-major order of moderate_ldpc_H / large_mobius_ldpc_H, so for M=16/32
+    this function gives the same graph but different coefficients. construct_H
+    dispatches those sizes to the hand-written versions first.
+    """
+    assert M % 2 == 0, f"Möbius construction needs even M, got {M}"
+    GF = galois.GF(q)
+    np.random.seed(seed)
+    L = 3 * M // 2
+    half = M // 2
+    chk_to_var = {c: [] for c in range(M)}
+    var_to_chk = {v: [] for v in range(L)}
+
+    def add(v, c):
+        chk_to_var[c].append(v)
+        var_to_chk[v].append(c)
+
+    for i in range(M):                      # cycle variables
+        add(i, i)
+        add(i, (i + 1) % M)
+    for i in range(half):                   # chord variables
+        add(M + i, i)
+        add(M + i, i + half)
+
+    H = GF.Zeros((M, L))
+    for v in range(L):
+        for c in var_to_chk[v]:
+            H[c, v] = GF(np.random.randint(1, q))
+    return H, var_to_chk, chk_to_var
+
+
 def construct_H(q, L, M, d_v, d_c, seed=42):
     """
     Construct LDPC parity-check matrix H with all encoding components.
+
+    (2,3)-regular codes with L = 3M/2 use a fixed structured graph (see the
+    module docstring); only other parameters fall back to QC-PEG.
 
     Args:
         q: Alphabet size (GF(q))
@@ -383,6 +456,9 @@ def construct_H(q, L, M, d_v, d_c, seed=42):
     elif L == 12 and M == 8 and d_v == 2 and d_c == 3:
         print(f"  Using tiny LDPC construction (high girth)")
         H_matrix, var_to_chk, chk_to_var = tiny_ldpc_H(q, seed)
+    elif d_v == 2 and d_c == 3 and M % 2 == 0 and L == 3 * M // 2:
+        print(f"  Using generalized Möbius-ladder construction M{M} (Tanner girth 8)")
+        H_matrix, var_to_chk, chk_to_var = mobius_ldpc_H(q, M, seed)
     else:
         # Fallback to protograph + QC-PEG
         # For small fields (especially GF(2)), PEG may produce rank-deficient H.

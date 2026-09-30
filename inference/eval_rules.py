@@ -17,6 +17,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from rules.sic_bp import DEFAULT_MAX_ITERS, DEFAULT_DAMPING, DEFAULT_EXPLAIN_STRENGTH  # noqa: E402
+
 
 def get_data_path(data_name: str) -> str:
     """Get data path from config name."""
@@ -80,14 +82,18 @@ def hungarian_match(pred, gt):
     return col_ind, total_symbol_errors, per_codeword_errors
 
 
-def evaluate_sic_bp(X, Y, H, max_iters=50, damping=0.1, explain_strength=1.0, K_override=None, num_orderings=1, batch_size=256, use_wht=True):
+def evaluate_sic_bp(X, Y, H, max_iters=None, damping=None, explain_strength=None, K_override=None, num_orderings=1, batch_size=256, use_wht=True):
     """Evaluate factorized BP decoder with batched processing.
 
     use_wht=True runs FFT-BP (check-node XOR convolution via the Walsh-Hadamard
     transform, O(Q log Q)); use_wht=False runs SIC-BP (direct XOR convolution,
     O(Q^2)). The two differ only in how that convolution is evaluated.
     """
-    from rules.sic_bp import FactorizedBPDecoder
+    from rules.sic_bp import (FactorizedBPDecoder, DEFAULT_MAX_ITERS,
+                              DEFAULT_DAMPING, DEFAULT_EXPLAIN_STRENGTH)
+    max_iters = DEFAULT_MAX_ITERS if max_iters is None else max_iters
+    damping = DEFAULT_DAMPING if damping is None else damping
+    explain_strength = DEFAULT_EXPLAIN_STRENGTH if explain_strength is None else explain_strength
 
     B, K_data, N = X.shape
     K = K_override if K_override is not None else K_data
@@ -243,11 +249,11 @@ def main():
                         help='Direct path to data directory (overrides data name lookup)')
     parser.add_argument('--split', default='test', choices=['train', 'val', 'test'],
                         help='Data split to evaluate')
-    parser.add_argument('--max_iters', type=int, default=20,
+    parser.add_argument('--max_iters', type=int, default=DEFAULT_MAX_ITERS,
                         help='Max BP iterations (sic_bp only)')
-    parser.add_argument('--damping', type=float, default=0.1,
+    parser.add_argument('--damping', type=float, default=DEFAULT_DAMPING,
                         help='Message damping (sic_bp only)')
-    parser.add_argument('--explain_strength', type=float, default=1.0,
+    parser.add_argument('--explain_strength', type=float, default=DEFAULT_EXPLAIN_STRENGTH,
                         help='Explain-away strength (sic_bp only)')
     parser.add_argument('--variant', choices=['fft', 'sic'], default='fft',
                         help='sic_bp only: fft = FFT-BP (WHT check update, O(Q log Q)); '

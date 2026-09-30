@@ -777,9 +777,14 @@ class Diffusion(L.LightningModule):
             return self._sample_soft(Y_mag, num_steps, use_remasking,
                                      perm_indices=perm_indices)
         else:
-            # Opt-in vectorized sampler (config.model.fast_sampler); see
-            # _sample_discrete_fast. Default False keeps the original path.
-            if self.config.model.get('fast_sampler', False):
+            # Opt-in vectorized sampler; see _sample_discrete_fast. Enabled by
+            # the use_fast_sampler attribute (set by inference/bench_* scripts)
+            # or by config.model.fast_sampler (main.py +fast_sampler=true).
+            # Default False keeps the original path.
+            use_fast = getattr(self, 'use_fast_sampler', None)
+            if use_fast is None:
+                use_fast = self.config.model.get('fast_sampler', False)
+            if use_fast:
                 return self._sample_discrete_fast(
                     Y_mag, num_steps, random_slot_first=random_slot_first,
                     perm_indices=perm_indices)

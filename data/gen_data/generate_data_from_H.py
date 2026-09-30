@@ -26,6 +26,10 @@ from gf_gpu import GF_GPU
 from noisy_channel.modulation_encoder import ModulationEncoder, create_sensing_matrix
 from noisy_channel.modulation_decoder_batch import BatchedModulationDecoder
 
+# AMP inner-detector iterations used for every generated dataset. Evaluation
+# scripts import this as the "matched" detector setting (scripts/eval_mismatch.py).
+AMP_MAX_ITER = 10
+
 
 def load_H(h_matrix_path):
     """Load H matrix and encoding components from file."""
@@ -170,9 +174,25 @@ def main():
     # Output
     parser.add_argument('--output', type=str, required=True, help='Output directory')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for data generation')
+    parser.add_argument('--data_seed', type=int, default=None,
+                        help='Seed for the codeword/noise stream, applied AFTER the sensing '
+                             'matrix is built. --seed keeps selecting A (so A matches training). '
+                             'Default: same stream as --seed, except for test-only runs (see below).')
+    parser.add_argument('--allow_train_stream', action='store_true',
+                        help='Allow a test-only run (num_train=0) to reuse the --seed stream. '
+                             'Without this flag such a run replays the first frames of the '
+                             'training set generated with the same --seed.')
     parser.add_argument('--device', type=str, default='cuda', help='Device')
 
     args = parser.parse_args()
+
+    # A test-only run with the training seed draws exactly the frames that head
+    # the training set (the stream is reseeded before the first split), so the
+    # "test" set would be train[:num_test]. Move it to a distinct stream.
+    if args.num_train == 0 and args.data_seed is None and not args.allow_train_stream:
+        args.data_seed = args.seed + 1_000_003
+        print(f"[generate_data_from_H] test-only run: using --data_seed {args.data_seed} "
+              f"so the frames do not replay the seed-{args.seed} training stream")
 
     # Set seeds
     np.random.seed(args.seed)
@@ -207,9 +227,15 @@ def main():
     )
     print(f"  A shape: {A.shape}")
 
+    # create_partial_dft_matrix reseeds with --seed, so reseed the data stream
+    # here, after A is fixed.
+    if args.data_seed is not None:
+        np.random.seed(args.data_seed)
+        torch.manual_seed(args.data_seed)
+
     # Create inner code encoder/decoder
     encoder = ModulationEncoder(A=A, B=B, Eb=args.Eb, L=L)
-    decoder = BatchedModulationDecoder(K=args.K, max_iter=10, sigma2=args.sigma2)
+    decoder = BatchedModulationDecoder(K=args.K, max_iter=AMP_MAX_ITER, sigma2=args.sigma2)
 
     gamma = args.K / q
     metadata = {'K': args.K, 'Q': q, 'gamma': encoder.Psym, 'sigma2': args.sigma2}
@@ -267,6 +293,8 @@ def main():
             'num_val': args.num_val,
             'num_test': args.num_test,
             'seed': args.seed,
+            'data_seed': args.data_seed,
+            'device': str(device),
         }
     }
     with open(os.path.join(args.output, 'dataset_metadata.json'), 'w') as f:

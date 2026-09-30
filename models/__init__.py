@@ -17,6 +17,9 @@ from .cider_direct import DiMPNoGRUOneShot as CIDER_direct
 # CIDER iterative (no masking)
 from .cider_iterative import DiMPIterative as CIDER_iterative
 
+# CIDER iterative v2 (strong non-diffusion iterative refinement control)
+from .cider_iterative_v2 import DiMPIterativeV2 as CIDER_iterative_v2
+
 # MDD
 from .mdd import DiT, DDiTFinalLayer
 
@@ -47,6 +50,7 @@ __all__ = [
     'CIDER_NoMP',
     'CIDER_direct',
     'CIDER_iterative',
+    'CIDER_iterative_v2',
     'CIDER_GRU',
     'CIDER_GRU_direct',
     # MDD

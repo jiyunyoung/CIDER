@@ -1,0 +1,13 @@
+# configs/model/cider_iterative_v2_hidden.yaml
+#
+# Ablation A2-hidden: same as cider_iterative_v2 but the iterative baseline also
+# carries a D-dimensional GRU state between iterations. This gives it a strictly
+# WIDER inter-iteration channel than CIDER itself has (masked diffusion only
+# carries a discrete token sequence between steps), at the cost of +3*D^2
+# parameters. Use it to pre-empt "you crippled the recurrence".
+
+defaults:
+  - cider_iterative_v2
+  - _self_
+
+feedback: hidden

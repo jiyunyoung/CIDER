@@ -18,7 +18,8 @@ import torch
 from torch.utils.data import DataLoader
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from rules.sic_bp import FactorizedBPDecoder
+from rules.sic_bp import (FactorizedBPDecoder, DEFAULT_MAX_ITERS, DEFAULT_DAMPING,
+                          DEFAULT_EXPLAIN_STRENGTH)
 from data.data_onthefly import QaryOnTheFlyDataset
 from inference.eval_rules import hungarian_match
 
@@ -89,9 +90,9 @@ def main():
     p.add_argument('--seed', type=int, default=199999,
                    help='Fixed seed for on-the-fly test data')
     # SIC-BP hyperparameters
-    p.add_argument('--max-iters', type=int, default=50)
-    p.add_argument('--damping', type=float, default=0.1)
-    p.add_argument('--explain-strength', type=float, default=1.0)
+    p.add_argument('--max-iters', type=int, default=DEFAULT_MAX_ITERS)
+    p.add_argument('--damping', type=float, default=DEFAULT_DAMPING)
+    p.add_argument('--explain-strength', type=float, default=DEFAULT_EXPLAIN_STRENGTH)
     p.add_argument('--batched', action='store_true',
                    help='Use decode_batch() instead of per-sample decode(). '
                         'Faster but slightly different float ordering.')

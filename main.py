@@ -12,15 +12,17 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Ri
 from lightning.pytorch.loggers import WandbLogger
 
 from diffusion import Diffusion
-from models import MLP, CNN, GNN, Transformer, MPA, NBP, CIDER_direct, CIDER_GRU_direct, CIDER_iterative
+from models import MLP, CNN, GNN, Transformer, MPA, NBP, CIDER_direct, CIDER_GRU_direct, CIDER_iterative, CIDER_iterative_v2
 from dataloader import get_dataloaders
 
 # Baseline models (non-diffusion, one-shot prediction)
-BASELINE_MODELS = {'mlp':MLP, 'cnn':CNN, 'transformer':Transformer, 'gnn':GNN, 'nbp':NBP, 'mpa':MPA, 'cider_direct':CIDER_direct, 'cider_gru_direct':CIDER_GRU_direct, 'cider_iterative':CIDER_iterative}
+BASELINE_MODELS = {'mlp':MLP, 'cnn':CNN, 'transformer':Transformer, 'gnn':GNN, 'nbp':NBP, 'mpa':MPA, 'cider_direct':CIDER_direct, 'cider_gru_direct':CIDER_GRU_direct, 'cider_iterative':CIDER_iterative, 'cider_iterative_v2':CIDER_iterative_v2}
 
 
 def load_H_matrix(config):
     """Load H_matrix directly from data directory."""
+    # The data configs use '~/data/...'; expand it like dataloader.py does,
+    # otherwise the file is not found and H silently becomes None.
     data_dir = os.path.expanduser(config.data_dir)
     H_file = os.path.join(data_dir, 'H_matrix.pt')
     if os.path.exists(H_file):

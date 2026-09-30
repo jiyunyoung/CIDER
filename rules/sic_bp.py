@@ -24,6 +24,10 @@ from dataclasses import dataclass
 
 from utils.gf import get_gf
 
+DEFAULT_MAX_ITERS = 50
+DEFAULT_DAMPING = 0.1
+DEFAULT_EXPLAIN_STRENGTH = 1.0
+
 
 @dataclass
 class LDPCGraph:
@@ -111,9 +115,9 @@ class FactorizedBPDecoder:
         K: int,
         M: int,
         H: np.ndarray,
-        max_iters: int = 50,
-        damping: float = 0.1,
-        explain_strength: float = 1.0,
+        max_iters: int = DEFAULT_MAX_ITERS,
+        damping: float = DEFAULT_DAMPING,
+        explain_strength: float = DEFAULT_EXPLAIN_STRENGTH,
         eps: float = 1e-10,
         use_wht: bool = True,
     ):
@@ -738,9 +742,9 @@ class FactorizedBPDemixer:
         self.M = config.data.M
 
         # BP parameters
-        self.max_iters = config.model.get('max_iters', 50)
-        self.damping = config.model.get('damping', 0.5)
-        self.explain_strength = config.model.get('explain_strength', 0.9)
+        self.max_iters = config.model.get('max_iters', DEFAULT_MAX_ITERS)
+        self.damping = config.model.get('damping', DEFAULT_DAMPING)
+        self.explain_strength = config.model.get('explain_strength', DEFAULT_EXPLAIN_STRENGTH)
 
         self.decoder = None
         self.H_matrix = None
