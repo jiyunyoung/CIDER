@@ -777,6 +777,12 @@ class Diffusion(L.LightningModule):
             return self._sample_soft(Y_mag, num_steps, use_remasking,
                                      perm_indices=perm_indices)
         else:
+            # Opt-in vectorized sampler (config.model.fast_sampler); see
+            # _sample_discrete_fast. Default False keeps the original path.
+            if self.config.model.get('fast_sampler', False):
+                return self._sample_discrete_fast(
+                    Y_mag, num_steps, random_slot_first=random_slot_first,
+                    perm_indices=perm_indices)
             return self._sample_discrete(Y_mag, num_steps,
                                          random_slot_first=random_slot_first,
                                          perm_indices=perm_indices)
@@ -1102,3 +1108,106 @@ class Diffusion(L.LightningModule):
         Y_batch = Y_mag.unsqueeze(0).to(self.device)
         X_hat = self.restore_model_and_sample(Y_batch, num_steps=num_steps, use_remasking=use_remasking)
         return X_hat[0]
+
+
+    @torch.no_grad()
+    def _sample_discrete_fast(self, Y_mag, num_steps=None,
+                              random_slot_first=True, perm_indices=None,
+                              early_break=False):
+        """Vectorized version of _sample_discrete() (opt-in: model.fast_sampler=true).
+
+        Same algorithm; the per-step reveal is expressed with sort/scatter
+        instead of a Python `for b in range(B)` loop, so it has no host syncs
+        inside the step loop. The original performs one `.item()` sync per step
+        plus B iterations of nonzero/topk/scatter, so on GPU its cost grows with
+        B*T even though the decode itself does not. This is the sampler used for
+        the K<=2 latency measurements.
+
+        Not bit-identical to _sample_discrete(). Temperature annealing saturates
+        many confidences to exactly 1.0, and torch.sort (full array) and
+        torch.topk (compacted array) break those ties differently, so a few
+        frames take a different reveal order. On 512 Tiny test frames (T=12)
+        95-99% of decoded frames were identical and CER agreed within sampling
+        noise. Published accuracy numbers use the original sampler (default).
+
+        The step-1 random row is drawn per sample in the same order as the
+        original (B sequential randint calls), so the RNG stream is consumed
+        identically. early_break=False keeps the decode fixed-cost
+        (deterministic latency).
+        """
+        if num_steps is None:
+            num_steps = self.config.model.get('inference_steps', 16)
+
+        B = Y_mag.shape[0]
+        K, N = self.K, self.N
+        device = Y_mag.device
+        P = K * N
+
+        X_t = torch.full((B, K, N), self.mask_index, device=device,
+                         dtype=torch.long)
+        temp_start = self.config.model.get('sample_temp_start', 1.5)
+        temp_end = self.config.model.get('sample_temp_end', 0.3)
+        ranks = torch.arange(P, device=device).unsqueeze(0)      # [1,P]
+        slot_of = (torch.arange(P, device=device) // N).unsqueeze(0)  # [1,P]
+        NEG = torch.finfo(torch.float32).min
+
+        def unmask_schedule(step, total_steps):
+            if total_steps <= 1:
+                return 1.0
+            return 0.5 * (1 - math.cos(math.pi * (step / total_steps)))
+
+        for step in range(1, num_steps + 1):
+            is_masked = (X_t == self.mask_index)
+            if early_break and not bool(is_masked.any()):
+                break
+
+            num_masked_b = is_masked.view(B, -1).sum(1)              # [B]
+            # Matches the original exactly: it computes num_masked/(B*P) in
+            # Python (float64) and only then materialises a float32 tensor.
+            # Dividing directly in float32 differs by ~1 ULP, which is enough
+            # to flip a near-tie in the confidence ranking and cascade into a
+            # different reveal order.
+            t_val = (num_masked_b.sum().double() / (B * P)).float()
+            t = t_val.expand(B)
+
+            logits = self(X_t, Y_mag, t, soft_input=False,
+                          perm_indices=perm_indices)
+            tau = cosine_anneal(temp_start, temp_end, step, num_steps)
+            probs = F.softmax(logits / tau, dim=-1)
+            confidence, predictions = probs.max(dim=-1)              # [B,K,N]
+
+            mask_flat = is_masked.view(B, -1)
+            conf_flat = torch.where(mask_flat, confidence.view(B, -1),
+                                    torch.full_like(confidence.view(B, -1), NEG))
+            pred_flat = predictions.view(B, -1)
+
+            if random_slot_first and step == 1 and K > 1:
+                # Draw one slot per sample, consuming RNG in the same order as
+                # the original's per-b randint so seeded runs agree exactly.
+                slots = torch.cat([torch.randint(0, K, (1,), device=device)
+                                   for _ in range(B)])              # [B]
+                eligible = mask_flat & (slot_of == slots.unsqueeze(1))
+                cand = torch.where(eligible, conf_flat,
+                                   torch.full_like(conf_flat, NEG))
+                top1 = cand.argmax(dim=1)                            # [B]
+                reveal = F.one_hot(top1, P).bool() & eligible.any(1, keepdim=True)
+            else:
+                target_unmasked = int(unmask_schedule(step, num_steps) * P)
+                already = P - num_masked_b
+                n_take = torch.clamp(target_unmasked - already, min=1)
+                n_take = torch.minimum(n_take, num_masked_b)         # [B]
+
+                conf_sorted, idx_sorted = conf_flat.sort(dim=1, descending=True)
+                take = (ranks < n_take.unsqueeze(1)) & (conf_sorted > NEG)
+                reveal = torch.zeros_like(mask_flat).scatter(1, idx_sorted, take)
+
+            X_flat = X_t.view(B, -1)
+            X_t = torch.where(reveal, pred_flat, X_flat).view(B, K, N)
+
+        if bool((X_t == self.mask_index).any()):
+            t_final = torch.zeros(B, device=device)
+            final_preds = self(X_t, Y_mag, t_final, soft_input=False,
+                               perm_indices=perm_indices).argmax(dim=-1)
+            X_t = torch.where(X_t == self.mask_index, final_preds, X_t)
+
+        return X_t

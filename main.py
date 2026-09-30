@@ -21,7 +21,7 @@ BASELINE_MODELS = {'mlp':MLP, 'cnn':CNN, 'transformer':Transformer, 'gnn':GNN, '
 
 def load_H_matrix(config):
     """Load H_matrix directly from data directory."""
-    data_dir = config.data_dir
+    data_dir = os.path.expanduser(config.data_dir)
     H_file = os.path.join(data_dir, 'H_matrix.pt')
     if os.path.exists(H_file):
         H_data = torch.load(H_file, weights_only=True)
@@ -433,6 +433,15 @@ def _eval(config: DictConfig):
             config.model.inference_steps = inference_steps
             OmegaConf.set_struct(config, True)
 
+        # model.* CLI overrides are replaced by the checkpoint's model config
+        # above, so the fast sampler is enabled with a top-level +fast_sampler=true.
+        fast_sampler = config.get('fast_sampler', None)
+        if fast_sampler is not None:
+            print(f">>> Overriding fast_sampler: {config.model.get('fast_sampler', False)} -> {bool(fast_sampler)}")
+            OmegaConf.set_struct(config, False)
+            config.model.fast_sampler = bool(fast_sampler)
+            OmegaConf.set_struct(config, True)
+
         slot_init_scale = config.get('slot_init_scale', None)
         if slot_init_scale is not None and hasattr(model.backbone, 'slot_init'):
             original_norm = model.backbone.slot_init.data.norm().item()
@@ -581,6 +590,15 @@ def _test(config: DictConfig):
             print(f">>> Overriding inference_steps: {config.model.get('inference_steps', 'N/A')} -> {inference_steps}")
             OmegaConf.set_struct(config, False)
             config.model.inference_steps = inference_steps
+            OmegaConf.set_struct(config, True)
+
+        # model.* CLI overrides are replaced by the checkpoint's model config
+        # above, so the fast sampler is enabled with a top-level +fast_sampler=true.
+        fast_sampler = config.get('fast_sampler', None)
+        if fast_sampler is not None:
+            print(f">>> Overriding fast_sampler: {config.model.get('fast_sampler', False)} -> {bool(fast_sampler)}")
+            OmegaConf.set_struct(config, False)
+            config.model.fast_sampler = bool(fast_sampler)
             OmegaConf.set_struct(config, True)
 
         # Scale slot_init if requested

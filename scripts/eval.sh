@@ -16,7 +16,13 @@
 #
 # Options:
 #   random_slot_first=true   Enable random slot first reveal (default: false)
-#   model.inference_steps=N  Set inference steps
+#   +inference_steps=N       Override inference steps T. Diffusion models default
+#                            to the paper's T per size (tiny 12, small 16,
+#                            moderate 20, large 28). Note: model.inference_steps=N
+#                            has no effect in test mode, because the model config
+#                            is restored from the checkpoint.
+#   +fast_sampler=true       Vectorized K<=2 sampler (faster on GPU; not bit-identical
+#                            to the default sampler, see Diffusion._sample_discrete_fast)
 #
 # Supported models:
 #   - cider, cider_gru (diffusion message passing)
@@ -81,13 +87,23 @@ if [ -z "$CHECKPOINT" ]; then
     exit 1
 fi
 
+# Paper inference steps T per size (tab:app_exact_model_sizing). The model
+# config is restored from the checkpoint in test mode, so T must be passed as
+# +inference_steps; the size yamls' inference_steps only sets T_train (and
+# the default T) for newly trained models.
+declare -A PAPER_T=([tiny]=12 [small]=16 [moderate]=20 [large]=28)
+T_ARG=""
+if [ "$IS_BASELINE" = false ] && [[ "$EXTRA_ARGS" != *inference_steps=* ]] && [ -n "${PAPER_T[$SIZE]}" ]; then
+    T_ARG="+inference_steps=${PAPER_T[$SIZE]}"
+fi
+
 echo "============================================================"
 echo "Test (random_slot_first=False)"
 echo "============================================================"
 if [ "$IS_BASELINE" = true ]; then
     echo "Data: $DATA | Model: $MODEL (baseline)"
 else
-    echo "Data: $DATA | Size: $SIZE | Model: $MODEL"
+    echo "Data: $DATA | Size: $SIZE | Model: $MODEL | ${T_ARG:-inference_steps from args/checkpoint}"
 fi
 echo "Checkpoint: $CHECKPOINT"
 echo "============================================================"
@@ -106,5 +122,5 @@ else
         size=$SIZE \
         model=$MODEL \
         checkpoint_path=$CHECKPOINT \
-        $EXTRA_ARGS
+        $T_ARG $EXTRA_ARGS
 fi

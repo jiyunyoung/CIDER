@@ -6,4 +6,4 @@ model:
   D_model: 128
   num_layers: 8
   heads: 4
-  inference_steps: 24
+  inference_steps: 24   # T_train for new runs (checkpoints store their own); eval T is passed by scripts/eval.sh (+inference_steps)

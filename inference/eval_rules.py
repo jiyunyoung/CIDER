@@ -80,8 +80,13 @@ def hungarian_match(pred, gt):
     return col_ind, total_symbol_errors, per_codeword_errors
 
 
-def evaluate_sic_bp(X, Y, H, max_iters=50, damping=0.1, explain_strength=1.0, K_override=None, num_orderings=1, batch_size=256):
-    """Evaluate factorized BP decoder with batched processing."""
+def evaluate_sic_bp(X, Y, H, max_iters=50, damping=0.1, explain_strength=1.0, K_override=None, num_orderings=1, batch_size=256, use_wht=True):
+    """Evaluate factorized BP decoder with batched processing.
+
+    use_wht=True runs FFT-BP (check-node XOR convolution via the Walsh-Hadamard
+    transform, O(Q log Q)); use_wht=False runs SIC-BP (direct XOR convolution,
+    O(Q^2)). The two differ only in how that convolution is evaluated.
+    """
     from rules.sic_bp import FactorizedBPDecoder
 
     B, K_data, N = X.shape
@@ -96,6 +101,7 @@ def evaluate_sic_bp(X, Y, H, max_iters=50, damping=0.1, explain_strength=1.0, K_
         max_iters=max_iters,
         damping=damping,
         explain_strength=explain_strength,
+        use_wht=use_wht,
     )
 
     correct_codewords = 0
@@ -237,12 +243,15 @@ def main():
                         help='Direct path to data directory (overrides data name lookup)')
     parser.add_argument('--split', default='test', choices=['train', 'val', 'test'],
                         help='Data split to evaluate')
-    parser.add_argument('--max_iters', type=int, default=50,
+    parser.add_argument('--max_iters', type=int, default=20,
                         help='Max BP iterations (sic_bp only)')
     parser.add_argument('--damping', type=float, default=0.1,
                         help='Message damping (sic_bp only)')
     parser.add_argument('--explain_strength', type=float, default=1.0,
                         help='Explain-away strength (sic_bp only)')
+    parser.add_argument('--variant', choices=['fft', 'sic'], default='fft',
+                        help='sic_bp only: fft = FFT-BP (WHT check update, O(Q log Q)); '
+                             'sic = SIC-BP (direct XOR convolution, O(Q^2))')
     parser.add_argument('--proposal_width', type=int, default=2,
                         help='Top-L candidates per position (top_j_es/stitching)')
     parser.add_argument('--beam_width', type=int, default=1000,
@@ -280,7 +289,7 @@ def main():
 
     # Evaluate
     if args.decoder == 'sic_bp':
-        print(f"Parameters: max_iters={args.max_iters}, damping={args.damping}, "
+        print(f"Parameters: variant={args.variant}, max_iters={args.max_iters}, damping={args.damping}, "
               f"explain_strength={args.explain_strength}, K={args.k or 'auto'}, num_orderings={args.num_orderings}")
         correct, total, correct_sym, total_sym, elapsed = evaluate_sic_bp(
             X, Y, H,
@@ -289,6 +298,7 @@ def main():
             explain_strength=args.explain_strength,
             K_override=args.k,
             num_orderings=args.num_orderings,
+            use_wht=(args.variant == 'fft'),
         )
     elif args.decoder == 'stitching':
         print(f"Parameters: proposal_width={args.proposal_width}, beam_width={args.beam_width}, K={args.k or 'auto'}")

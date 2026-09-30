@@ -574,7 +574,7 @@ class FactorizedBPDecoder:
                 msg = self._normalize_prob_batch(msg)
                 v2c_new[:, n, m, :] = (1 - damp) * v2c[:, n, m, :] + damp * msg
 
-        # === Check to variable messages (WHT-based, batched) ===
+        # === Check to variable messages (batched; WHT or direct XOR convolution) ===
         c2v_new = np.zeros_like(c2v)
         for m in range(M):
             vars_in_check = self.graph.check_to_vars[m]
@@ -593,24 +593,49 @@ class FactorizedBPDecoder:
                 perm = self._perm_table[h_inv]  # [Q]
                 transformed[:, i, :] = v2c_gathered[:, i, :][:, perm]  # [B, Q]
 
-            # WHT of each edge message: [B, d_c, Q]
-            wht_all = _walsh_hadamard_transform(transformed)  # [..., Q] works
+            if self.use_wht:
+                # ---- FFT-BP: XOR convolution via WHT, O(Q log Q) ----
+                # WHT of each edge message: [B, d_c, Q]
+                wht_all = _walsh_hadamard_transform(transformed)  # [..., Q] works
 
-            # For each target edge, multiply WHTs of all OTHER edges (extrinsic)
-            # Product of all WHTs: [B, Q]
-            wht_prod = wht_all.prod(axis=1)  # [B, Q]
+                # For each target edge, multiply WHTs of all OTHER edges (extrinsic)
+                # Product of all WHTs: [B, Q]
+                wht_prod = wht_all.prod(axis=1)  # [B, Q]
 
-            for i, (v, h) in enumerate(zip(vars_in_check, coeffs)):
-                # Extrinsic: divide out this edge's WHT
-                wht_ext = wht_prod / (wht_all[:, i, :] + 1e-30)  # [B, Q]
-                # Inverse WHT
-                conv = _walsh_hadamard_transform(wht_ext) / Q  # [B, Q]
-                conv = np.maximum(conv, 0)
-                conv = self._normalize_prob_batch(conv)
-                # GF-permute back: out[x] = conv[h * x]
-                perm_fwd = self._perm_table[h]  # [Q]
-                out = conv[:, perm_fwd]  # [B, Q]
-                c2v_new[:, m, v, :] = (1 - damp) * c2v[:, m, v, :] + damp * out
+                for i, (v, h) in enumerate(zip(vars_in_check, coeffs)):
+                    # Extrinsic: divide out this edge's WHT
+                    wht_ext = wht_prod / (wht_all[:, i, :] + 1e-30)  # [B, Q]
+                    # Inverse WHT
+                    conv = _walsh_hadamard_transform(wht_ext) / Q  # [B, Q]
+                    conv = np.maximum(conv, 0)
+                    conv = self._normalize_prob_batch(conv)
+                    # GF-permute back: out[x] = conv[h * x]
+                    perm_fwd = self._perm_table[h]  # [Q]
+                    out = conv[:, perm_fwd]  # [B, Q]
+                    c2v_new[:, m, v, :] = (1 - damp) * c2v[:, m, v, :] + damp * out
+            else:
+                # ---- SIC-BP: direct XOR convolution, O(Q^2) ----
+                # Mirrors the per-sample branch in _check_to_var_message, but
+                # vectorized over B. For fixed z1, z1^z2 over z2 is a bijection,
+                # so the scatter below has no repeated indices and += is exact.
+                xor_rows = np.arange(Q)[None, :] ^ np.arange(Q)[:, None]  # [Q, Q]
+                for i, (v, h) in enumerate(zip(vars_in_check, coeffs)):
+                    others = [transformed[:, j, :]
+                              for j in range(d_c) if j != i]
+                    if not others:
+                        conv = np.ones((B, Q)) / Q
+                    else:
+                        conv = others[0].copy()
+                        for p_z in others[1:]:
+                            conv_new = np.zeros_like(conv)
+                            for z1 in range(Q):
+                                conv_new[:, xor_rows[z1]] += (
+                                    conv[:, z1:z1 + 1] * p_z)
+                            conv = self._normalize_prob_batch(conv_new)
+                    conv = self._normalize_prob_batch(np.maximum(conv, 0))
+                    perm_fwd = self._perm_table[h]  # [Q]
+                    out = conv[:, perm_fwd]  # [B, Q]
+                    c2v_new[:, m, v, :] = (1 - damp) * c2v[:, m, v, :] + damp * out
 
         # === Posteriors ===
         posteriors = channel_prob.copy()  # [B, N, Q]
