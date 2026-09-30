@@ -6,7 +6,9 @@ Produces the estimator and Bank columns of Table tab:estimated_load
 (P(K_hat=K), Bank MDR, Bank FAR). K is not assumed known: a front-end
 estimator reads the number of active users from the raw received energy --
 the same observation the AMP inner detector already consumes -- and
-dispatches each frame to the matching per-K CIDER decoder ("Bank"). We report:
+dispatches each frame to the matching per-K CIDER decoder ("Bank"). In the
+Bank pipeline the AMP detector is re-run on y_recv with the estimated K, so the
+true K is never used (--true_k_amp restores the stored true-K evidence). We report:
 
   (1) Estimator accuracy: confusion matrix of K_hat vs true K.
   (2) End-to-end PUPE (= MDR) and FAR of the composed pipeline (K_hat picks the
@@ -61,6 +63,18 @@ from rich.table import Table
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from inference.eval_protocol import INFERENCE_STEPS, load_all_checkpoints
 from inference.eval_k_mismatch import decode, score_mismatched
+from data.gen_data.generate_data_from_H import AMP_MAX_ITER
+from data.gen_data.noisy_channel.modulation_encoder import create_sensing_matrix
+from data.gen_data.noisy_channel.modulation_decoder_batch import BatchedModulationDecoder
+
+
+def amp_evidence(y_recv, K, psym, A, sigma2, Q):
+    """Re-run the AMP detector on raw slots y_recv [n, L, n_s] assuming K users."""
+    n, L, n_s = y_recv.shape
+    dec = BatchedModulationDecoder(K=K, max_iter=AMP_MAX_ITER, sigma2=sigma2)
+    meta = {'K': K, 'Q': Q, 'gamma': psym, 'sigma2': sigma2}
+    Y = dec.forward_batch(y_recv.reshape(n * L, n_s), A, meta, output_type='logits')
+    return Y.float().reshape(n, L, Q)
 
 
 def energy_feature(y_recv):
@@ -83,6 +97,9 @@ def main():
                    help='Bias the estimator up (classify to the nearest '
                         'centroid, then +1 if the frame sits above the '
                         'centroid) since over-provisioning is nearly free.')
+    p.add_argument('--true_k_amp', action='store_true',
+                   help='Decode the stored evidence (AMP run with the TRUE K) in the '
+                        'estimated-K pipeline too, instead of re-running AMP with K_hat.')
     p.add_argument('--batch_size', type=int, default=64)
     p.add_argument('--save_results', default='logs/k_estimator.json')
     args = p.parse_args()
@@ -142,6 +159,13 @@ def main():
     checkpoints = load_all_checkpoints(args.checkpoint_dir, device,
                                        K_list=Ks)
 
+    # Sensing matrix and detector settings of the stored y_recv
+    # (data/data_onthefly.py: partial DFT, seed 42, built on CPU).
+    meta0 = data[Ks[0]]['meta']
+    Q, n_s, sigma2 = meta0['Q'], meta0['n_s'], meta0['sigma2']
+    A = create_sensing_matrix(n_s=n_s, Q=Q, matrix_type='partial_dft',
+                              seed=42, device='cpu')
+
     # ---- (1) confusion matrix + (2) composed vs oracle -------------------
     confusion = {kt: {kh: 0 for kh in Ks} for kt in Ks}
     # running PUPE counters
@@ -171,7 +195,12 @@ def main():
             steps = INFERENCE_STEPS.get(int(Kh), 16)
             for s in range(0, len(sub), args.batch_size):
                 b = sub[s:s + args.batch_size]
-                Y = Y_all[b].to(device).float()
+                if args.true_k_amp:
+                    Y = Y_all[b]
+                else:   # AMP sees only the estimated load
+                    Y = amp_evidence(data[Kt]['y_recv'][b], int(Kh),
+                                     float(data[Kt]['Psym']), A, sigma2, Q)
+                Y = Y.to(device).float()
                 X0 = X0_all[b].to(device)
                 with torch.no_grad():
                     preds = decode(int(Kh), dm, qh, Y, H, steps)
@@ -244,6 +273,7 @@ def main():
                f"[bold]{comp_pupe - orac_pupe:+.4f}[/bold]")
     console.print(pt)
     console.print(f"\nround_up bias: {args.round_up}   "
+                  f"AMP load: {'true K' if args.true_k_amp else 'estimated K'}   "
                   f"eval time: {dt:.1f}s")
 
     if args.save_results:
@@ -253,7 +283,8 @@ def main():
             centroids=centroids, confusion=confusion, per_k=per_k,
             overall=dict(pupe_composed=comp_pupe, far_composed=comp_far,
                          pupe_oracle=orac_pupe,
-                         khat_acc=float(overall_acc), round_up=args.round_up),
+                         khat_acc=float(overall_acc), round_up=args.round_up,
+                         amp_load='true_k' if args.true_k_amp else 'estimated_k'),
         ), indent=2))
         console.print(f"[bold green]Saved: {out}[/bold green]")
 

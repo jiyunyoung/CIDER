@@ -13,7 +13,7 @@
 #   --data_dir PATH              Data directory (default: data/gen_data/datasets/protocol_Eb10)
 #                                Expected layout: <dir>/K{1..8}/test_data.pt
 #   --user_counts N...           Active user counts K_a to sweep
-#                                (default: 10 15 20 25 30)
+#                                (default: 10 20 ... 100)
 #   --num_frames N               Frames per user count (default: 1000)
 #   --batch_size N               Inference batch size (default: 32)
 #   --K_range KMIN KMAX          Decoder K range [min,max), K>=KMAX is overflow
@@ -21,7 +21,7 @@
 #   --save_results PATH          Save results to JSON file
 #
 # Preamble allocation:
-#   (default)                    Flexible at --target_load 5 (set in this script)
+#   (default)                    Flexible at --target_load 4 (set in this script)
 #   --target_load F              Override the default load (e.g. --target_load 3.0)
 #
 #   To use FIXED preambles (--num_preambles) or EXPLICIT per-K_a counts
@@ -43,7 +43,7 @@ cd "$PROJECT_ROOT"
 # user didn't pass an explicit slot-allocation flag. Argparse uses an elif
 # chain, so silently injecting --target_load would override --num_preambles
 # and --preambles_per_count without warning.
-DEFAULT_TARGET_LOAD=5
+DEFAULT_TARGET_LOAD=4
 
 USER_SET_SLOTS=0
 for arg in "$@"; do

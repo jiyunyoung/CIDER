@@ -235,8 +235,8 @@ class BeamTopJDecoder:
 
     # ------------------------------------------------------------------
     @torch.no_grad()
-    def decode_batch(self, Y_batch) -> np.ndarray:
-        """Y_batch: [S,N,Q] -> codewords [S,K,N] (numpy)."""
+    def decode_batch(self, Y_batch, as_numpy: bool = True):
+        """Y_batch: [S,N,Q] -> codewords [S,K,N] (numpy, or a device tensor if as_numpy=False)."""
         if isinstance(Y_batch, np.ndarray):
             Y = torch.as_tensor(Y_batch, dtype=torch.float32, device=self.dev)
         else:
@@ -307,4 +307,4 @@ class BeamTopJDecoder:
             pick = torch.gather(
                 cw, 1, first.view(-1, 1, 1).expand(-1, 1, N)).squeeze(1)
             out[few] = pick[few].unsqueeze(1).expand(-1, K, -1)
-        return out.cpu().numpy()
+        return out.cpu().numpy() if as_numpy else out

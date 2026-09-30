@@ -923,9 +923,9 @@ def main():
                         help='Directory containing K{1..8}/best_model.ckpt')
     parser.add_argument('--data_dir', type=str, default='data/gen_data/datasets/protocol_Eb10',
                         help='Directory containing K{1..8}/test_data.pt and K{#}/H_matrix.pt')
-    parser.add_argument('--user_counts', type=int, nargs='+', default=[10, 15, 20, 25, 30],
+    parser.add_argument('--user_counts', type=int, nargs='+', default=list(range(10, 101, 10)),
                         help='Number of users to evaluate')
-    parser.add_argument('--num_preambles', type=int, default=12,
+    parser.add_argument('--num_preambles', type=int, default=25,
                         help='Number of ZC preambles/slots (ignored if --target_load or --preambles_per_count is set)')
     parser.add_argument('--target_load', type=float, default=None,
                         help='If set, num_preambles per K_a is ceil(K_a / target_load) — keeps mean per-slot load constant')

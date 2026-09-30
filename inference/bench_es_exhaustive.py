@@ -78,7 +78,7 @@ def main():
     p.add_argument('K', type=int)
     p.add_argument('L', help='code length, or scale name: tiny/small/moderate/large/peg/tree')
     p.add_argument('--J', type=int, default=None, help='proposal width: top-J symbols per position (default: K)')
-    p.add_argument('--n', type=int, default=512, help='samples for CER/latency')
+    p.add_argument('--n', type=int, default=1000, help='samples for CER/latency')
     p.add_argument('--bs', type=int, default=8)
     p.add_argument('--dnf_s', type=int, default=60, help='per-sample DNF threshold (s)')
     p.add_argument('--data_root', default='~/data/demix',
@@ -129,22 +129,19 @@ def main():
                                  proposal_width=J, device=dev, seq_split=s)
             # DNF gate: warm up and time one sample under a dnf_s cap
             signal.alarm(args.dnf_s)
-            es.decode_batch(Yt[:1]); sync()                  # warmup / OOM probe
+            es.decode_batch(Yt[:1], as_numpy=False); sync()  # warmup / OOM probe
             signal.alarm(args.dnf_s)
-            t0 = time.perf_counter()
-            es.decode_batch(Yt[:1]); sync()
+            es.decode_batch(Yt[:1], as_numpy=False); sync()
             signal.alarm(0)
-            probe_ms = (time.perf_counter() - t0) * 1000     # bs=1, upper-bound-ish
 
-            # size n so the measurement takes about dnf_s
-            n_meas = int(min(n, max(args.bs,
-                                    (args.dnf_s * 1000) / probe_ms // args.bs * args.bs)))
+            n_meas = n
 
             t0 = time.perf_counter()
-            preds = np.concatenate([np.asarray(es.decode_batch(Yt[lo:lo + args.bs]))
-                                    for lo in range(0, n_meas, args.bs)], 0)
+            out = [es.decode_batch(Yt[lo:lo + args.bs], as_numpy=False)
+                   for lo in range(0, n_meas, args.bs)]
             sync()
             ms = (time.perf_counter() - t0) * 1000 / n_meas
+            preds = torch.cat(out, 0).cpu().numpy()
             ser, c = ser_cer(preds, X0[:n_meas], K)
             print(f'  {label:<7} SER {ser:.4f}  CER {c:.4f}  {ms:.2f} ms/sample')
         except _Timeout:

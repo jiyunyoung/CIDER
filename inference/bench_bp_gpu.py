@@ -57,6 +57,7 @@ def time_cpu(npdec, Y, bs):
 
 def time_gpu(tdec, Y, bs, repeats=3):
     B = Y.shape[0]
+    Y = torch.as_tensor(Y, dtype=tdec.dtype, device=tdec.dev)   # staged, not timed
     # warmup
     _ = tdec.decode_batch(Y[:min(bs, B)])
     torch.cuda.synchronize()
@@ -80,7 +81,7 @@ def main():
     p.add_argument('--variants', nargs='+', default=['sic', 'fft'],
                    choices=['sic', 'fft'])
     p.add_argument('--batch_size', '--bs', type=int, default=8)
-    p.add_argument('--num_samples', '--n', type=int, default=512)
+    p.add_argument('--num_samples', '--n', type=int, default=15000)
     p.add_argument('--repeats', type=int, default=1)
     p.add_argument('--data_root', default=os.path.expanduser('~/data/demix'),
                    help='Directory holding {tiny,small,moderate,large}_LDPC/test_data.pt')
